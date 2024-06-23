@@ -15,7 +15,5 @@ type Notification struct {
     TemplateID  string
     Status      string
     Content     string
-    Variables   []TemplateVariable
-    CreatedAt   string
-    UpdatedAt   string
+    Variables   []TemplateVariable  
 }

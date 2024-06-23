@@ -16,7 +16,5 @@ type NotificationDTO struct {
     Status      string                `json:"status"`
     Content     string                `json:"content"`
     Variables   []TemplateVariableDTO `json:"variables"`
-    CreatedAt   string                `json:"created_at,omitempty"`
-    UpdatedAt   string                `json:"updated_at,omitempty"`
     Error       string                `json:"error,omitempty"`
 }

@@ -1,5 +1,5 @@
 
-package createnotification
+package sendnotification
 
 import "errors"
 
