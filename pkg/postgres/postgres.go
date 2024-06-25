@@ -9,9 +9,7 @@ import (
 	"time"
 
 	"getnoti.com/config"
-
-	"github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -25,8 +23,7 @@ type Postgres struct {
 	connAttempts int
 	connTimeout  time.Duration
 
-	Builder squirrel.StatementBuilderType
-	Pool    *pgxpool.Pool
+	Pool *pgxpool.Pool
 }
 
 var pg *Postgres
@@ -34,7 +31,6 @@ var hdlOnce sync.Once
 
 // NewOrGetSingleton -.
 func NewOrGetSingleton(config *config.Config) *Postgres {
-
 	hdlOnce.Do(func() {
 		postgres, err := initPg(config)
 		if err != nil {
@@ -54,8 +50,6 @@ func initPg(config *config.Config) (*Postgres, error) {
 		connTimeout:  _defaultConnTimeout,
 	}
 
-	pg.Builder = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
-
 	poolConfig, err := pgxpool.ParseConfig(config.PG.URL)
 	if err != nil {
 		return nil, fmt.Errorf("postgres - NewPostgres - pgxpool.ParseConfig: %w", err)
@@ -64,7 +58,7 @@ func initPg(config *config.Config) (*Postgres, error) {
 	poolConfig.MaxConns = int32(pg.maxPoolSize)
 
 	for pg.connAttempts > 0 {
-		pg.Pool, err = pgxpool.ConnectConfig(context.Background(), poolConfig)
+		pg.Pool, err = pgxpool.NewWithConfig(context.Background(), poolConfig)
 		if err == nil {
 			break
 		}

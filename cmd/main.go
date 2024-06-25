@@ -1,59 +1,69 @@
 package main
 
-// import (
-// 	"fmt"
-// 	"os"
-// 	"os/signal"
-// 	"syscall"
+import (
+	// "context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
-// 	"getnoti.com/internal"
-// 	"getnoti.com/pkg/httpserver"
-// 	"getnoti.com/pkg/logger"
-// )
+	"getnoti.com/config"
+	"getnoti.com/internal/notifications/infra/http"
+	"getnoti.com/pkg/httpserver"
+	"getnoti.com/pkg/logger"
+	"getnoti.com/pkg/postgres"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+)
 
-// func main() {
-// 	log, err := internal.InitializeLogger()
-// 	if err != nil {
-// 		fmt.Printf("Failed to initialize logger: %v\n", err)
-// 		os.Exit(1)
-// 	}
+func main() {
+	// Load configuration
+	cfg, err := config.LoadConfig("config.yaml")
+	if err != nil {
+		fmt.Printf("Failed to load configuration: %v\n", err)
+		os.Exit(1)
+	}
 
-// 	httpServer := startServers(log)
-// 	err = waitForSignals(log, httpServer)
-// 	shutdown(err, httpServer, log)
-// }
+	// Initialize logger
+	log := logger.New(cfg)
 
-// func startServers(log *logger.Logger) *httpserver.Server {
-// 	httpServer, err := internal.InitializeNewHttpServer()
-// 	if err != nil {
-// 		log.Error(fmt.Errorf("app - Run - httpServer initialization: %w", err))
-// 		os.Exit(1)
-// 	}
-// 	return httpServer
-// }
+	// Initialize database connection pool
+	db := postgres.NewOrGetSingleton(cfg)
+	defer db.Close()
 
-// func waitForSignals(log *logger.Logger, httpServer *httpserver.Server) error {
-// 	// Waiting for signal
-// 	interrupt := make(chan os.Signal, 1)
-// 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
+	// Create main router
+	router := chi.NewRouter()
 
-// 	var err error
-// 	select {
-// 	case s := <-interrupt:
-// 		log.Info("app - Run - signal: " + s.String())
-// 	case err = <-httpServer.Notify():
-// 		log.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
-// 	}
-// 	return err
-// }
+	// Use common middleware
+	router.Use(middleware.RequestID)
+	router.Use(middleware.RealIP)
+	router.Use(middleware.Logger)
+	router.Use(middleware.Recoverer)
 
-// func shutdown(err error, httpServer *httpserver.Server, log *logger.Logger) {
-// 	if err != nil {
-// 		log.Error(fmt.Errorf("app - Run - shutdown error: %w", err))
-// 	}
+	// Mount notification routes
+	notificationRouter := notificationroutes.NewRouter(db.Pool)
+	router.Mount("/notifications", notificationRouter)
 
-// 	err = httpServer.Shutdown()
-// 	if err != nil {
-// 		log.Error(fmt.Errorf("app - Run - httpServer.Shutdown: %w", err))
-// 	}
-// }
+	// Mount other domain routers here as needed
+	// userRouter := users.NewRouter(db.Pool)
+	// router.Mount("/users", userRouter)
+
+	// Create HTTP server
+	httpServer := httpserver.New(cfg, router)
+
+	// Start the server
+	log.Info("Server started on port " + cfg.HTTP.Port)
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+
+	log.Info("Server is shutting down...")
+
+	if err := httpServer.Shutdown(); err != nil {
+		log.Error(fmt.Errorf("server shutdown: %w", err))
+	}
+
+	log.Info("Server exited properly")
+}

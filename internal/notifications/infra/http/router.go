@@ -1,24 +1,31 @@
-package userroutes
+
+package notificationroutes
 
 import (
 	"context"
 	"encoding/json"
 	"net/http"
 
+	
+	"getnoti.com/internal/notifications/repos/implementations"
 	"getnoti.com/internal/notifications/usecases/sendnotification"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func NewRouter(
-	sendNotificationController *sendnotification.SendNotificationController,
-
-) *chi.Mux {
+func NewRouter(db *pgxpool.Pool) *chi.Mux {
 	r := chi.NewRouter()
 
-	// Middleware to extract IDs from URL parameters and add them to the request context
-	// r.Use(middleware.ExtractIDMiddleware)
+	// Initialize repository
+	notificationRepo := postgres.NewPostgresNotificationRepository(db)
 
-	// User routes
+	// Initialize use case
+	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(notificationRepo)
+
+	// Initialize controller
+	sendNotificationController := sendnotification.NewSendNotificationController(sendNotificationUseCase)
+
+	// Set up routes
 	r.Post("/", commonHandler(sendNotificationController.SendNotification))
 
 	return r

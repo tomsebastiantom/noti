@@ -1,4 +1,3 @@
-// Package httpserver implements HTTP Server.
 package httpserver
 
 import (
@@ -7,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"getnoti.com/config"
+	"github.com/go-chi/chi/v5"
 )
 
 const (
@@ -23,18 +22,18 @@ type Server struct {
 	server          *http.Server
 	notify          chan error
 	shutdownTimeout time.Duration
-	Router          *gin.Engine
+	Router          *chi.Mux
 }
 
-func New(cfg *config.Config, router *gin.Engine) *Server {
-
+// New creates a new HTTP server.
+func New(cfg *config.Config, router *chi.Mux) *Server {
 	server := prepareHttpServer(cfg, router)
 	server.start()
 
 	return server
 }
 
-func prepareHttpServer(cfg *config.Config, router *gin.Engine) *Server {
+func prepareHttpServer(cfg *config.Config, router *chi.Mux) *Server {
 	httpServer := &http.Server{
 		Handler:      router,
 		ReadTimeout:  _defaultReadTimeout,
@@ -59,12 +58,12 @@ func (s *Server) start() {
 	}()
 }
 
-// Notify -.
+// Notify returns a channel to notify when the server is closed.
 func (s *Server) Notify() <-chan error {
 	return s.notify
 }
 
-// Shutdown -.
+// Shutdown gracefully shuts down the server.
 func (s *Server) Shutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), s.shutdownTimeout)
 	defer cancel()
