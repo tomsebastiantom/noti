@@ -1,8 +1,10 @@
-
 package config
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
 
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
@@ -50,16 +52,48 @@ type RMQ struct {
 // Global koanf instance. Use "." as the key path delimiter.
 var k = koanf.New(".")
 
-func LoadConfig(configPath string) (*Config, error) {
-	// Load YAML config.
+func LoadConfig() (*Config, error) {
+	// Get the current working directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("error getting current working directory: %v", err)
+	}
+	fmt.Printf("Current working directory: %s\n", cwd)
+
+	// Construct the path to config.yaml relative to the source file's directory
+	_, sourceFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return nil, fmt.Errorf("error getting source file directory")
+	}
+	sourceDir := filepath.Dir(sourceFile)
+	configPath := filepath.Join(sourceDir, "config.yaml")
+
+	// Check if the file exists
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("config.yaml not found in the source directory")
+	}
+
+	// Load YAML config
 	if err := k.Load(file.Provider(configPath), yaml.Parser()); err != nil {
 		return nil, fmt.Errorf("error loading config: %v", err)
 	}
 
+	// Debug print statement to verify the loaded configuration in koanf
+	fmt.Printf("Koanf raw data: %+v\n", k.Raw())
+
+	// Debug print statement to verify the flattened configuration map
+	// confMapFlat := k.All()
+	// fmt.Printf("Flattened configuration map: %+v\n", confMapFlat)
+
 	var cfg Config
-	if err := k.Unmarshal("", &cfg); err != nil {
+	if err := k.UnmarshalWithConf("", &cfg, koanf.UnmarshalConf{Tag: "yaml"}); err != nil {
 		return nil, fmt.Errorf("error unmarshalling config: %v", err)
 	}
+
+	// Debug print statements to verify the loaded configuration
+	// fmt.Printf("Loaded configuration: %+v\n", cfg)
+	// fmt.Printf("Postgres PoolMax: %d\n", cfg.PG.PoolMax)
+	// fmt.Printf("Postgres URL: %s\n", cfg.PG.URL)
 
 	return &cfg, nil
 }

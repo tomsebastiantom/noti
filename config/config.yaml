@@ -1,0 +1,18 @@
+app:
+  name: "noti"
+  version: "1.0.0"
+
+http:
+  port: "8080"
+
+logger:
+  log_level: "debug"
+
+postgres:
+  pool_max: 10
+  url: "postgresql://user:password@localhost:5438/postgres"
+
+rabbitmq:
+  rpc_server_exchange: "rpc_server"
+  rpc_client_exchange: "rpc_client"
+  url: "amqp://guest:guest@localhost:5672/"

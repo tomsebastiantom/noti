@@ -1,14 +1,13 @@
 package main
 
 import (
-	// "context"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"getnoti.com/config"
-	"getnoti.com/internal/notifications/infra/http"
+	notificationroutes "getnoti.com/internal/notifications/infra/http"
 	"getnoti.com/pkg/httpserver"
 	"getnoti.com/pkg/logger"
 	"getnoti.com/pkg/postgres"
@@ -18,11 +17,21 @@ import (
 
 func main() {
 	// Load configuration
-	cfg, err := config.LoadConfig("config.yaml")
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		fmt.Printf("Failed to load configuration: %v\n", err)
 		os.Exit(1)
 	}
+
+	// fmt.Printf("App Name: %s\n", cfg.App.Name)
+	// fmt.Printf("App Version: %s\n", cfg.App.Version)
+	// fmt.Printf("HTTP Port: %s\n", cfg.HTTP.Port)
+	// fmt.Printf("Log Level: %s\n", cfg.Log.Level)
+	// fmt.Printf("Postgres PoolMax: %d\n", cfg.PG.PoolMax)
+	// fmt.Printf("Postgres URL: %s\n", cfg.PG.URL)
+	// fmt.Printf("RabbitMQ Server Exchange: %s\n", cfg.RMQ.ServerExchange)
+	// fmt.Printf("RabbitMQ Client Exchange: %s\n", cfg.RMQ.ClientExchange)
+	// fmt.Printf("RabbitMQ URL: %s\n", cfg.RMQ.URL)
 
 	// Initialize logger
 	log := logger.New(cfg)
@@ -48,6 +57,9 @@ func main() {
 	// userRouter := users.NewRouter(db.Pool)
 	// router.Mount("/users", userRouter)
 
+
+
+	
 	// Create HTTP server
 	httpServer := httpserver.New(cfg, router)
 

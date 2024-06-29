@@ -39,7 +39,8 @@ func NewOrGetSingleton(config *config.Config) *Postgres {
 
 		pg = postgres
 	})
-
+    
+	// fmt.Printf("Pg driver: %+v\n", pg)
 	return pg
 }
 
