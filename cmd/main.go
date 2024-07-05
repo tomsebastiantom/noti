@@ -7,7 +7,7 @@ import (
 	"syscall"
 
 	"getnoti.com/config"
-	notificationroutes "getnoti.com/internal/notifications/infra/http"
+	"getnoti.com/internal/notifications/infra/http"
 	"getnoti.com/pkg/httpserver"
 	"getnoti.com/pkg/logger"
 	"getnoti.com/pkg/postgres"
@@ -58,8 +58,6 @@ func main() {
 	// router.Mount("/users", userRouter)
 
 
-
-	
 	// Create HTTP server
 	httpServer := httpserver.New(cfg, router)
 
