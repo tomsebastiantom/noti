@@ -6,14 +6,14 @@ import (
 
 	"getnoti.com/internal/notifications/domain"
 	"getnoti.com/internal/notifications/repos"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"getnoti.com/pkg/db"
 )
 
 type postgresNotificationRepository struct {
-	db *pgxpool.Pool
+	db db.Database
 }
 
-func NewPostgresNotificationRepository(db *pgxpool.Pool) repository.NotificationRepository {
+func NewPostgresNotificationRepository(db db.Database) repository.NotificationRepository {
 	return &postgresNotificationRepository{db: db}
 }
 

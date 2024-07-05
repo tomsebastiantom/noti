@@ -8,9 +8,13 @@ http:
 logger:
   log_level: "debug"
 
-postgres:
-  pool_max: 10
-  url: "postgresql://user:password@localhost:5438/postgres"
+database:
+  type: "postgres" # or "mysql"
+  postgres:
+    pool_max: 10
+    dsn: "postgresql://user:password@localhost:5438/postgres"
+  mysql:
+    dsn: "user:password@tcp(localhost:3306)/dbname"
 
 rabbitmq:
   rpc_server_exchange: "rpc_server"

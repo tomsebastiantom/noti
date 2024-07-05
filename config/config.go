@@ -13,11 +13,11 @@ import (
 
 // Config structure
 type Config struct {
-	App  App  `yaml:"app"`
-	HTTP HTTP `yaml:"http"`
-	Log  Log  `yaml:"logger"`
-	PG   PG   `yaml:"postgres"`
-	RMQ  RMQ  `yaml:"rabbitmq"`
+	App      App      `yaml:"app"`
+	HTTP     HTTP     `yaml:"http"`
+	Log      Log      `yaml:"logger"`
+	Database Database `yaml:"database"`
+	RMQ      RMQ      `yaml:"rabbitmq"`
 }
 
 // App structure
@@ -36,10 +36,22 @@ type Log struct {
 	Level string `yaml:"log_level"`
 }
 
+// Database structure
+type Database struct {
+	Type     string `yaml:"type"`
+	Postgres PG     `yaml:"postgres"`
+	MySQL    MySQL  `yaml:"mysql"`
+}
+
 // PG structure
 type PG struct {
 	PoolMax int    `yaml:"pool_max"`
-	URL     string `yaml:"url"`
+	DSN     string `yaml:"dsn"`
+}
+
+// MySQL structure
+type MySQL struct {
+	DSN string `yaml:"dsn"`
 }
 
 // RMQ structure

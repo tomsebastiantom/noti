@@ -8,9 +8,9 @@ import (
 
 	"getnoti.com/config"
 	"getnoti.com/internal/notifications/infra/http"
+	"getnoti.com/pkg/db"
 	"getnoti.com/pkg/httpserver"
 	"getnoti.com/pkg/logger"
-	"getnoti.com/pkg/postgres"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -37,8 +37,12 @@ func main() {
 	log := logger.New(cfg)
 
 	// Initialize database connection pool
-	db := postgres.NewOrGetSingleton(cfg)
-	defer db.Close()
+	database, err := db.NewDatabaseFactory(cfg)
+	if err != nil {
+		fmt.Printf("Failed to initialize database: %v\n", err)
+		os.Exit(1)
+	}
+	defer database.Close()
 
 	// Create main router
 	router := chi.NewRouter()
@@ -50,13 +54,12 @@ func main() {
 	router.Use(middleware.Recoverer)
 
 	// Mount notification routes
-	notificationRouter := notificationroutes.NewRouter(db.Pool)
+	notificationRouter := notificationroutes.NewRouter(database)
 	router.Mount("/notifications", notificationRouter)
 
 	// Mount other domain routers here as needed
 	// userRouter := users.NewRouter(db.Pool)
 	// router.Mount("/users", userRouter)
-
 
 	// Create HTTP server
 	httpServer := httpserver.New(cfg, router)

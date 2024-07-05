@@ -10,14 +10,14 @@ import (
 	"getnoti.com/internal/notifications/repos/implementations"
 	"getnoti.com/internal/notifications/usecases/send_notification"
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"getnoti.com/pkg/db"
 )
 
-func NewRouter(db *pgxpool.Pool) *chi.Mux {
+func NewRouter(database db.Database) *chi.Mux {
 	r := chi.NewRouter()
 
 	// Initialize repository
-	notificationRepo := postgres.NewPostgresNotificationRepository(db)
+	notificationRepo := postgres.NewPostgresNotificationRepository(database)
 
 	// Initialize use case
 	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(notificationRepo)
