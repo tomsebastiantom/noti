@@ -1,0 +1,47 @@
+package createusers
+
+import (
+    "context"
+    repository"getnoti.com/internal/tenants/repos"
+)
+
+type CreateUsersUseCase interface {
+    Execute(ctx context.Context, input CreateUsersInput) (CreateUsersOutput, error)
+}
+
+
+
+
+
+type createUsersUseCase struct {
+    repo repository.UserRepository
+}
+
+func NewCreateUsersUseCase(repo repository.UserRepository) CreateUsersUseCase {
+    return &createUsersUseCase{
+        repo: repo,
+    }
+}
+
+func (uc *createUsersUseCase) Execute(ctx context.Context, input CreateUsersInput) (CreateUsersOutput, error) {
+    var output CreateUsersOutput
+    for _, user := range input.Users {
+        if user.ID == "" || user.TenantID == "" {
+            output.FailedUsers = append(output.FailedUsers, FailedUser{
+                UserID: user.ID,
+                Reason: "Missing user ID or tenant ID",
+            })
+            continue
+        }
+        err := uc.repo.CreateUser(ctx, user)
+        if err != nil {
+            output.FailedUsers = append(output.FailedUsers, FailedUser{
+                UserID: user.ID,
+                Reason: err.Error(),
+            })
+        } else {
+            output.SuccessUsers = append(output.SuccessUsers, user)
+        }
+    }
+    return output, nil
+}
