@@ -1,11 +1,11 @@
-package usecase
+package createuser
 
 import (
    
     "getnoti.com/internal/tenants/domain"
     
 )
-type CreateUserInput struct {
+type CreateUserRequest struct {
     ID           string
     TenantID     string
     Email        string
@@ -16,6 +16,6 @@ type CreateUserInput struct {
     PreferredMode domain.NotificationChannel
 }
 
-type CreateUserOutput struct {
+type CreateUserResponse struct {
     User domain.User
 }

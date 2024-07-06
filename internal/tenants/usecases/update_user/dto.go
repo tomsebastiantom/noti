@@ -1,8 +1,8 @@
-package updateusers
+package updateuser
 
 import "getnoti.com/internal/tenants/domain"
 
-type UpdateUsersRequest struct {
+type UpdateUserRequest struct {
     UserID        string
     TenantID      string
     Email         string
@@ -13,7 +13,7 @@ type UpdateUsersRequest struct {
     PreferredMode domain.NotificationChannel
 }
 
-type UpdateUsersResponse struct {
+type UpdateUserResponse struct {
     Success bool
     Message string
 }

@@ -1,4 +1,4 @@
-package usecase
+package createuser
 
 import (
     "context"
@@ -7,7 +7,7 @@ import (
 )
 
 type CreateUserUseCase interface {
-    Execute(ctx context.Context, input CreateUserInput) (CreateUserOutput, error)
+    Execute(ctx context.Context, input CreateUserRequest) (CreateUserResponse, error)
 }
 
 
@@ -21,7 +21,7 @@ func NewCreateUserUseCase(repo repository.UserRepository) CreateUserUseCase {
     }
 }
 
-func (uc *createUserUseCase) Execute(ctx context.Context, input CreateUserInput) (CreateUserOutput, error) {
+func (uc *createUserUseCase) Execute(ctx context.Context, input CreateUserRequest) (CreateUserResponse, error) {
     user := domain.User{
         ID:            input.ID,
         TenantID:      input.TenantID,
@@ -35,8 +35,8 @@ func (uc *createUserUseCase) Execute(ctx context.Context, input CreateUserInput)
 
     err := uc.repo.CreateUser(ctx, user)
     if err != nil {
-        return CreateUserOutput{}, err
+        return CreateUserResponse{}, err
     }
 
-    return CreateUserOutput{User: user}, nil
+    return CreateUserResponse{User: user}, nil
 }

@@ -1,4 +1,4 @@
-package updateusers
+package updateuser
 
 import "errors"
 

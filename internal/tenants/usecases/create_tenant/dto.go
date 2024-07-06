@@ -2,13 +2,13 @@ package createtenant
 
 import "getnoti.com/internal/tenants/domain"
 
-// Input/Output Definitions
-type CreateTenantInput struct {
+
+type CreateTenantRequest struct {
     ID             string
     Name           string
     DefaultChannel domain.NotificationChannel
 }
 
-type CreateTenantOutput struct {
+type CreateTenantResponse struct {
     Tenant domain.Tenant
 }

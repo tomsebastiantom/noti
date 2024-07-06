@@ -4,14 +4,14 @@ import (
 	"getnoti.com/internal/tenants/domain"
 )
 
-type UpdateTenantInput struct {
+type UpdateTenantRequest struct {
 	ID             string
 	Name           string
 	DefaultChannel string
 	Preferences    map[string]domain.ChannelPreference
 }
 
-type UpdateTenantOutput struct {
+type UpdateTenantResponse struct {
 	Success bool
 	Tenant  domain.Tenant
 	Error   string

@@ -13,6 +13,6 @@ func NewUpdateTenantController(useCase UpdateTenantUseCase) *UpdateTenantControl
     return &UpdateTenantController{useCase: useCase}
 }
 
-func (c *UpdateTenantController) UpdateTenant(ctx context.Context, req UpdateTenantInput) UpdateTenantOutput {
+func (c *UpdateTenantController) UpdateTenant(ctx context.Context, req UpdateTenantRequest) UpdateTenantResponse {
     return c.useCase.Execute(ctx, req)
 }

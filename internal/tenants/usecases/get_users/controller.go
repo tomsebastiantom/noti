@@ -1,4 +1,4 @@
-package get_users
+package getusers
 
 import (
     "context"
@@ -12,6 +12,6 @@ func NewGetUsersController(useCase GetUsersUseCase) *GetUsersController {
     return &GetUsersController{useCase: useCase}
 }
 
-func (c *GetUsersController) Execute(ctx context.Context, req GetUsersRequest) (GetUsersResponse, error) {
+func (c *GetUsersController) GetUsers(ctx context.Context, req GetUsersRequest) (GetUsersResponse, error) {
     return c.useCase.Execute(ctx, req)
 }

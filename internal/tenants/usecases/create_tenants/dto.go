@@ -1,23 +1,13 @@
 package createtenants
+import "getnoti.com/internal/tenants/domain"
 
-type CreateTenantsInput struct {
-    Tenants []TenantInput
+type CreateTenantsRequest struct {
+    Tenants []domain.Tenant
 }
 
-type TenantInput struct {
-    ID             string
-    Name           string
-    DefaultChannel string
-    Preferences    map[string]ChannelPreferenceInput
-}
 
-type ChannelPreferenceInput struct {
-    ChannelName string
-    Enabled     bool
-    ProviderID  string
-}
 
-type CreateTenantsOutput struct {
+type CreateTenantsResponse struct {
     SuccessTenants []string
     FailedTenants  []FailedTenant
 }

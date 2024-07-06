@@ -1,4 +1,4 @@
-package usecase
+package createuser
 
 import (
     "context"
@@ -12,6 +12,6 @@ func NewCreateUserController(useCase CreateUserUseCase) *CreateUserController {
     return &CreateUserController{useCase: useCase}
 }
 
-func (c *CreateUserController) Handle(ctx context.Context, req CreateUserInput) (CreateUserOutput, error) {
+func (c *CreateUserController) CreateUser(ctx context.Context, req CreateUserRequest) (CreateUserResponse, error) {
     return c.useCase.Execute(ctx, req)
 }

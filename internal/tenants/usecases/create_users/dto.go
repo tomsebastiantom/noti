@@ -5,11 +5,11 @@ import (
     "getnoti.com/internal/tenants/domain"
    
 )
-type CreateUsersInput struct {
+type CreateUsersRequest struct {
     Users []domain.User
 }
 
-type CreateUsersOutput struct {
+type CreateUsersResponse struct {
     SuccessUsers []domain.User
     FailedUsers  []FailedUser
 }

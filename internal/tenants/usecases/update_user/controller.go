@@ -1,18 +1,18 @@
-package updateusers
+package updateuser
 
 import (
     "context"
 )
 
-type UpdateUsersController struct {
-    useCase UpdateUsersUseCase
+type UpdateUserController struct {
+    useCase UpdateUserUseCase
 }
 
-func NewUpdateUsersController(useCase UpdateUsersUseCase) *UpdateUsersController {
-    return &UpdateUsersController{useCase: useCase}
+func NewUpdateUserController(useCase UpdateUserUseCase) *UpdateUserController {
+    return &UpdateUserController{useCase: useCase}
 }
 
-func (c *UpdateUsersController) UpdateTenant(ctx context.Context, req UpdateUsersRequest) (UpdateUsersResponse, error) {
+func (c *UpdateUserController) UpdateUser(ctx context.Context, req UpdateUserRequest) (UpdateUserResponse, error) {
     return c.useCase.Execute(ctx, req)
 }
 

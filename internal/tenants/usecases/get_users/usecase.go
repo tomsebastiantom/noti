@@ -1,4 +1,4 @@
-package get_users
+package getusers
 
 import (
     "context"

@@ -8,7 +8,7 @@ import (
 
 // Interface Definition
 type CreateTenantUseCase interface {
-    Execute(ctx context.Context, input CreateTenantInput) (CreateTenantOutput, error)
+    Execute(ctx context.Context, input CreateTenantRequest) (CreateTenantResponse, error)
 }
 
 // Struct Implementation
@@ -23,7 +23,7 @@ func NewCreateTenantUseCase(repo repository.TenantRepository) CreateTenantUseCas
 }
 
 // Method Implementation
-func (uc *createTenantUseCase) Execute(ctx context.Context, input CreateTenantInput) (CreateTenantOutput, error) {
+func (uc *createTenantUseCase) Execute(ctx context.Context, input CreateTenantRequest) (CreateTenantResponse, error) {
     tenant := domain.Tenant{
         ID:             input.ID,
         Name:           input.Name,
@@ -33,8 +33,8 @@ func (uc *createTenantUseCase) Execute(ctx context.Context, input CreateTenantIn
 
     err := uc.repo.CreateTenant(ctx, tenant)
     if err != nil {
-        return CreateTenantOutput{}, err
+        return CreateTenantResponse{}, err
     }
 
-    return CreateTenantOutput{Tenant: tenant}, nil
+    return CreateTenantResponse{Tenant: tenant}, nil
 }

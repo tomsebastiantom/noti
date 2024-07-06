@@ -6,7 +6,7 @@ import (
 )
 
 type CreateUsersUseCase interface {
-    Execute(ctx context.Context, input CreateUsersInput) (CreateUsersOutput, error)
+    Execute(ctx context.Context, input CreateUsersRequest) (CreateUsersResponse, error)
 }
 
 
@@ -23,8 +23,8 @@ func NewCreateUsersUseCase(repo repository.UserRepository) CreateUsersUseCase {
     }
 }
 
-func (uc *createUsersUseCase) Execute(ctx context.Context, input CreateUsersInput) (CreateUsersOutput, error) {
-    var output CreateUsersOutput
+func (uc *createUsersUseCase) Execute(ctx context.Context, input CreateUsersRequest) (CreateUsersResponse, error) {
+    var output CreateUsersResponse
     for _, user := range input.Users {
         if user.ID == "" || user.TenantID == "" {
             output.FailedUsers = append(output.FailedUsers, FailedUser{

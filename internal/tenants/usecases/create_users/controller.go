@@ -12,6 +12,6 @@ func NewCreateUsersController(useCase CreateUsersUseCase) *CreateUsersController
     return &CreateUsersController{useCase: useCase}
 }
 
-func (c *CreateUsersController) Handle(ctx context.Context, req CreateUsersInput) (CreateUsersOutput, error) {
+func (c *CreateUsersController) CreateUsers(ctx context.Context, req CreateUsersRequest) (CreateUsersResponse, error) {
     return c.useCase.Execute(ctx, req)
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type UpdateTenantUseCase interface {
-    Execute(ctx context.Context, input UpdateTenantInput) (UpdateTenantOutput)
+    Execute(ctx context.Context, input UpdateTenantRequest) (UpdateTenantResponse)
 }
 
 
@@ -22,10 +22,10 @@ func NewUpdateTenantUseCase(repo repository.TenantRepository) UpdateTenantUseCas
     }
 }
 
-func (uc *updateTenantUseCase) Execute(ctx context.Context, input UpdateTenantInput) UpdateTenantOutput {
+func (uc *updateTenantUseCase) Execute(ctx context.Context, input UpdateTenantRequest) UpdateTenantResponse {
     tenant, err := uc.repo.GetTenantByID(ctx, input.ID)
     if err != nil {
-        return UpdateTenantOutput{Success: false, Error: err.Error()}
+        return UpdateTenantResponse{Success: false, Error: err.Error()}
     }
 
     tenant.Name = input.Name
@@ -33,8 +33,8 @@ func (uc *updateTenantUseCase) Execute(ctx context.Context, input UpdateTenantIn
     tenant.Preferences = input.Preferences
 
     if err := uc.repo.Update(ctx, tenant); err != nil {
-        return UpdateTenantOutput{Success: false, Error: err.Error()}
+        return UpdateTenantResponse{Success: false, Error: err.Error()}
     }
 
-    return UpdateTenantOutput{Success: true, Tenant: tenant}
+    return UpdateTenantResponse{Success: true, Tenant: tenant}
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type CreateTenantsUseCase interface {
-    Execute(ctx context.Context, input CreateTenantsInput) (CreateTenantsOutput, error)
+    Execute(ctx context.Context, input CreateTenantsRequest) (CreateTenantsResponse, error)
 }
 
 type createTenantsUseCase struct {
@@ -20,7 +20,7 @@ func NewCreateTenantsUseCase(repo repository.TenantRepository) CreateTenantsUseC
     }
 }
 
-func (uc *createTenantsUseCase) Execute(ctx context.Context, input CreateTenantsInput) (CreateTenantsOutput, error) {
+func (uc *createTenantsUseCase) Execute(ctx context.Context, input CreateTenantsRequest) (CreateTenantsResponse, error) {
     var successTenants []string
     var failedTenants []FailedTenant
 
@@ -54,10 +54,10 @@ func (uc *createTenantsUseCase) Execute(ctx context.Context, input CreateTenants
     }
 
     if len(successTenants) == 0 {
-        return CreateTenantsOutput{}, ErrAllTenantsCreationFailed
+        return CreateTenantsResponse{}, ErrAllTenantsCreationFailed
     }
 
-    return CreateTenantsOutput{
+    return CreateTenantsResponse{
         SuccessTenants: successTenants,
         FailedTenants:  failedTenants,
     }, nil

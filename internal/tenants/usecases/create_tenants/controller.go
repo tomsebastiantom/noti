@@ -12,6 +12,6 @@ func NewCreateTenantsController(useCase CreateTenantsUseCase) *CreateTenantsCont
     return &CreateTenantsController{useCase: useCase}
 }
 
-func (c *CreateTenantsController) CreateTenants(ctx context.Context, req CreateTenantsInput) (CreateTenantsOutput, error) {
+func (c *CreateTenantsController) CreateTenants(ctx context.Context, req CreateTenantsRequest) (CreateTenantsResponse, error) {
     return c.useCase.Execute(ctx, req)
 }

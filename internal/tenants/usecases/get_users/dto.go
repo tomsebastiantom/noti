@@ -1,4 +1,4 @@
-package get_users
+package getusers
 
 import (
     "getnoti.com/internal/tenants/domain"
