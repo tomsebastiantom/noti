@@ -4,7 +4,7 @@ import (
     "context"
 
    "getnoti.com/internal/shared/utils"
-    "getnoti.com/internal/templates/domain/template"
+    "getnoti.com/internal/templates/domain"
     "getnoti.com/internal/templates/repos"
 )
 
@@ -26,7 +26,7 @@ func (uc *createTemplateUseCase) Execute(ctx context.Context, req CreateTemplate
         return CreateTemplateResponse{Success: false, Message: ErrUnexpected.Error()}
     }
 
-    tmpl := &template.Template{
+    tmpl := &domain.Template{
         ID:        tmplID,
         TenantID:  req.TenantID,
         Name:      req.Name,

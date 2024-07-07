@@ -1,9 +1,11 @@
 package updatetemplate
 
 import (
-    "context"
-"errors"
-    "getnoti.com/internal/templates/repos"
+	"context"
+	"errors"
+
+	postgres "getnoti.com/internal/templates/repos/implementations"
+	"getnoti.com/internal/templates/repos"
 )
 
 type UpdateTemplateUseCase interface {
@@ -22,7 +24,7 @@ func (uc *updateTemplateUseCase) Execute(ctx context.Context, req UpdateTemplate
     // Check if the template exists
     existingTemplate, err := uc.repository.GetTemplateByID(ctx, req.TemplateID)
     if err != nil {
-        if errors.Is(err, repos.ErrTemplateNotFound) {
+        if errors.Is(err, postgres.ErrTemplateNotFound) {
             return UpdateTemplateResponse{Success: false, Message: ErrTemplateNotFound.Error()}
         }
         return UpdateTemplateResponse{Success: false, Message: ErrUnexpected.Error()}

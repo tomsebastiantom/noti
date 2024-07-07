@@ -2,7 +2,7 @@ package gettemplate
 
 import (
 
-    "getnoti.com/internal/templates/domain/template"
+    "getnoti.com/internal/templates/domain"
 
 )
 
@@ -11,7 +11,7 @@ type GetTemplateRequest struct {
 }
 
 type GetTemplateResponse struct {
-    Template template.Template
+    Template domain.Template
     Success  bool
     Message  string
 }

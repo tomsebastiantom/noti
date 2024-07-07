@@ -1,4 +1,4 @@
-package repos
+package postgres
 
 import "errors"
 

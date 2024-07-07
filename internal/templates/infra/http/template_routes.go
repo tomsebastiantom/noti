@@ -5,28 +5,38 @@ import (
     "encoding/json"
     "net/http"
 
-    "getnoti.com/internal/templates/repos"
-    "getnoti.com/internal/templates/usecases/template"
+
+    "getnoti.com/internal/templates/usecases/create_template"
+    "getnoti.com/internal/templates/usecases/get_template"
+    "getnoti.com/internal/templates/usecases/get_templates_by_tenant"
+    "getnoti.com/internal/templates/usecases/update_template"
+    "getnoti.com/internal/templates/repos/implementations"
     "github.com/go-chi/chi/v5"
-    "github.com/jackc/pgx/v5/pgxpool"
+    "getnoti.com/pkg/db"
 )
 
-func NewRouter(db *pgxpool.Pool) *chi.Mux {
+func NewRouter(database db.Database) *chi.Mux {
     r := chi.NewRouter()
 
     // Initialize repository
-    templateRepo := repos.NewPostgresTemplateRepository(db)
+    templateRepo := postgres.NewPostgresTemplateRepository(database)
 
     // Initialize use case
-    createTemplateUseCase := template.NewCreateTemplateUseCase(templateRepo)
-    getTemplateUseCase := template.NewGetTemplateUseCase(templateRepo)
-
+    createTemplateUseCase := createtemplate.NewCreateTemplateUseCase(templateRepo)
+    getTemplateUseCase := gettemplate.NewGetTemplateUseCase(templateRepo)
+    getTemplateByTenantUseCase := gettemplates.NewGetTemplatesByTenantUseCase(templateRepo)
+    updateTemplateUseCase := updatetemplate.NewUpdateTemplateUseCase(templateRepo)
     // Initialize controller
-    templateController := template.NewTemplateController(createTemplateUseCase, getTemplateUseCase)
+    createTemplateController := createtemplate.NewCreateTemplateController(createTemplateUseCase)
+    getTemplateController := gettemplate.NewGetTemplateController(getTemplateUseCase)
+    getTemplateByTenantController := gettemplates.NewGetTemplatesByTenantController(getTemplateByTenantUseCase)
+    updateTemplateController := updatetemplate.NewUpdateTemplateController(updateTemplateUseCase)
 
     // Set up routes
-    r.Post("/create", commonHandler(templateController.CreateTemplate))
-    r.Get("/get", commonHandler(templateController.GetTemplate))
+	r.Post("/", commonHandler(createTemplateController.CreateTemplate))
+	r.Put("/{id}", commonHandler(updateTemplateController.UpdateTemplate))
+	r.Get("/tenants/{id}", commonHandler(getTemplateByTenantController.GetTemplatesByTenant))
+	r.Get("/{id}", commonHandler(getTemplateController.GetTemplate ))
 
     return r
 }
@@ -48,10 +58,14 @@ func commonHandler(handlerFunc interface{}) http.HandlerFunc {
         // Call the handler function with the context and request
         var res interface{}
         switch h := handlerFunc.(type) {
-        case func(context.Context, templatedto.CreateTemplateRequest) templatedto.CreateTemplateResponse:
-            res = h(ctx, req.(templatedto.CreateTemplateRequest))
-        case func(context.Context, templatedto.GetTemplateRequest) templatedto.GetTemplateResponse:
-            res = h(ctx, req.(templatedto.GetTemplateRequest))
+        case func(context.Context, gettemplate.GetTemplateRequest) gettemplate.GetTemplateResponse:
+            res = h(ctx, req.(gettemplate.GetTemplateRequest))
+        case func(context.Context, createtemplate.CreateTemplateRequest) createtemplate.CreateTemplateResponse:
+            res = h(ctx, req.(createtemplate.CreateTemplateRequest))
+        case func(context.Context, updatetemplate.UpdateTemplateRequest) updatetemplate.UpdateTemplateResponse:
+            res = h(ctx, req.(updatetemplate.UpdateTemplateRequest))
+        case func(context.Context, gettemplates.GetTemplatesByTenantRequest) gettemplates.GetTemplatesByTenantResponse:
+            res = h(ctx, req.(gettemplates.GetTemplatesByTenantRequest))
         default:
             http.Error(w, "Unsupported handler function", http.StatusInternalServerError)
             return
