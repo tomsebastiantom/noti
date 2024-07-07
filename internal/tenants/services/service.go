@@ -1,8 +1,9 @@
-package service
+package tenants
 
 import (
     "context"
     "getnoti.com/internal/tenants/repos"
+
 )
 
 type TenantService struct {

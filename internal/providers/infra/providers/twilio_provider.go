@@ -11,8 +11,7 @@ type TwilioProvider struct {
     client *twilio.RestClient
 }
 
-func NewTwilioProvider() *TwilioProvider {
-    client := twilio.NewRestClientWithParams(twilio.ClientParams{}) 
+func NewTwilioProviderWithClient(client *twilio.RestClient) *TwilioProvider {
     return &TwilioProvider{client: client}
 }
 
@@ -24,7 +23,7 @@ func (p *TwilioProvider) SendNotification(ctx context.Context, req dtos.SendNoti
         params.SetFrom(req.Sender)
         params.SetBody(req.Content)
         
-        resp, err := p.client.Api.CreateMessage(params) [[1]]
+        resp, err := p.client.Api.CreateMessage(params) 
         if err != nil {
             return dtos.SendNotificationResponse{Success: false, Message: err.Error()}
         }

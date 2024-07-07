@@ -7,13 +7,13 @@ import (
 )
 
 type SendNotificationController struct {
-	useCase SendNotificationUseCase
+	useCase *SendNotificationUseCase
 }
 
-func NewSendNotificationController(useCase SendNotificationUseCase) *SendNotificationController {
+func NewSendNotificationController(useCase *SendNotificationUseCase) *SendNotificationController {
 	return &SendNotificationController{useCase: useCase}
 }
 
-func (c *SendNotificationController) SendNotification(ctx context.Context, req SendNotificationRequest) SendNotificationResponse  {
+func (c *SendNotificationController) SendNotification(ctx context.Context, req SendNotificationRequest) SendNotificationResponse {
 	return c.useCase.Execute(ctx, req)
 }

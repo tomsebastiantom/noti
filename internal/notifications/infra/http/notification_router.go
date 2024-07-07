@@ -11,24 +11,47 @@ import (
 	"getnoti.com/internal/notifications/usecases/send_notification"
 	"github.com/go-chi/chi/v5"
 	"getnoti.com/pkg/db"
+
+	"getnoti.com/internal/providers/infra/providers"
+	providerService"getnoti.com/internal/providers/services"
+
+    "getnoti.com/internal/tenants/services"
+ 
+
+	
+	pg "getnoti.com/internal/tenants/repos/implementations"
+
+	
 )
+
+
+    
+    
+   
 
 func NewRouter(database db.Database) *chi.Mux {
 	r := chi.NewRouter()
 
-	// Initialize repository
-	notificationRepo := postgres.NewPostgresNotificationRepository(database)
+    // Initialize repositories
+    notificationRepo := postgres.NewPostgresNotificationRepository(database)
+    tenantRepo := pg.NewPostgresTenantRepository(database)
 
-	// Initialize use case
-	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(notificationRepo)
+    // Initialize services
+    tenantService := tenants.NewTenantService(tenantRepo)
+    providerFactory := providers.NewProviderFactory() // Assuming you have a factory initialization
+    providerService := providerService.NewProviderService(providerFactory)
 
-	// Initialize controller
-	sendNotificationController := sendnotification.NewSendNotificationController(sendNotificationUseCase)
+    // Initialize use case
+    sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(tenantService, providerService, notificationRepo)
 
-	// Set up routes
-	r.Post("/", commonHandler(sendNotificationController.SendNotification))
+    // Initialize controller
+    sendNotificationController := sendnotification.NewSendNotificationController(sendNotificationUseCase)
 
-	return r
+    // Set up routes
+    r.Post("/", commonHandler(sendNotificationController.SendNotification))
+
+    return r
+
 }
 
 // commonHandler is a generic HTTP handler function that handles requests and responses for different controllers.

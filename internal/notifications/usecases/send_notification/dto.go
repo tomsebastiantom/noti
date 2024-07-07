@@ -16,6 +16,7 @@ type SendNotificationResponse struct {
     Status  string
     Error   string 
 }
+
 type TemplateVariable struct {
     Key   string
     Value string
