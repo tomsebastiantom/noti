@@ -12,7 +12,7 @@ database:
   type: "postgres" # or "mysql"
   postgres:
     pool_max: 10
-    dsn: "postgresql://user:password@localhost:5438/postgres"
+    dsn: "postgresql://user:password@localhost:5438/noti2"
   mysql:
     dsn: "user:password@tcp(localhost:3306)/dbname"
 

@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"getnoti.com/config"
+	 "getnoti.com/pkg/migration"
 	notificationroutes "getnoti.com/internal/notifications/infra/http"
 	"getnoti.com/pkg/db"
 	"getnoti.com/pkg/httpserver"
@@ -27,11 +28,16 @@ func main() {
 	// fmt.Printf("App Version: %s\n", cfg.App.Version)
 	// fmt.Printf("HTTP Port: %s\n", cfg.HTTP.Port)
 	// fmt.Printf("Log Level: %s\n", cfg.Log.Level)
-	// fmt.Printf("Postgres PoolMax: %d\n", cfg.PG.PoolMax)
-	// fmt.Printf("Postgres URL: %s\n", cfg.PG.URL)
+	// fmt.Printf("Postgres PoolMax: %d\n", cfg.Database.Postgres.PoolMax)
+	// fmt.Printf("Postgres URL: %s\n", cfg.Database.Postgres.DSN)
 	// fmt.Printf("RabbitMQ Server Exchange: %s\n", cfg.RMQ.ServerExchange)
 	// fmt.Printf("RabbitMQ Client Exchange: %s\n", cfg.RMQ.ClientExchange)
 	// fmt.Printf("RabbitMQ URL: %s\n", cfg.RMQ.URL)
+
+	
+
+	migrate.Migrate(cfg.Database.Postgres.DSN)
+	
 
 	// Initialize logger
 	log := logger.New(cfg)
