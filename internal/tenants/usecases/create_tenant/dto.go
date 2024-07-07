@@ -9,7 +9,7 @@ type CreateTenantRequest struct {
 }
 
 type CreateChannelPreference struct {
-    ChannelName domain.NotificationChannel
+    ChannelName string
     Enabled     bool
     ProviderID  string
 }

@@ -7,17 +7,7 @@ type Tenant struct {
 }
 
 type ChannelPreference struct {
-    ChannelName NotificationChannel
+    ChannelName string
     Enabled     bool
     ProviderID  string
 }
-
-type NotificationChannel string
-
-const (
-    Email   NotificationChannel = "email"
-    SMS     NotificationChannel = "sms"
-    Push    NotificationChannel = "push"
-	Call    NotificationChannel = "call"
-    WebPush  NotificationChannel = "webpush"
-)

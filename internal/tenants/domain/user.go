@@ -8,8 +8,8 @@ type User struct {
     PhoneNumber   string
     DeviceID      string
     WebPushToken  string
-    Consents      map[NotificationChannel]bool
-    PreferredMode NotificationChannel
+    Consents      map[string]bool
+    PreferredMode string
 }
 
 

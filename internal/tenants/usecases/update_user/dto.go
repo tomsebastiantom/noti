@@ -1,6 +1,6 @@
 package updateuser
 
-import "getnoti.com/internal/tenants/domain"
+
 
 type UpdateUserRequest struct {
     UserID        string
@@ -9,8 +9,8 @@ type UpdateUserRequest struct {
     PhoneNumber   string
     DeviceID      string
     WebPushToken  string
-    Consents      map[domain.NotificationChannel]bool
-    PreferredMode domain.NotificationChannel
+    Consents      map[string]bool
+    PreferredMode string
 }
 
 type UpdateUserResponse struct {

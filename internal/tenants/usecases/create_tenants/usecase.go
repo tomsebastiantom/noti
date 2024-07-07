@@ -39,7 +39,7 @@ func (uc *createTenantsUseCase) Execute(ctx context.Context, input CreateTenants
 
         for key, pref := range tenant.Preferences {
             domainTenant.Preferences[key] = domain.ChannelPreference{
-                ChannelName: domain.NotificationChannel(pref.ChannelName),
+                ChannelName: pref.ChannelName,
                 Enabled:     pref.Enabled,
                 ProviderID:  pref.ProviderID,
             }

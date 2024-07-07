@@ -12,8 +12,8 @@ type CreateUserRequest struct {
     PhoneNumber  string
     DeviceID     string
     WebPushToken string
-    Consents     map[domain.NotificationChannel]bool
-    PreferredMode domain.NotificationChannel
+    Consents     map[string]bool
+    PreferredMode string
 }
 
 type CreateUserResponse struct {
