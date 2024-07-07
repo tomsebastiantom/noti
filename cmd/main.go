@@ -7,7 +7,7 @@ import (
 	"syscall"
 
 	"getnoti.com/config"
-	"getnoti.com/internal/notifications/infra/http"
+	notificationroutes "getnoti.com/internal/notifications/infra/http"
 	"getnoti.com/pkg/db"
 	"getnoti.com/pkg/httpserver"
 	"getnoti.com/pkg/logger"

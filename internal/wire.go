@@ -1,60 +1,52 @@
-//go:build wireinject
+// internal/wire.go
 // +build wireinject
 
-// // The build tag makes sure the stub is not built in the final build.
 package internal
 
 // import (
-//     "github.com/gin-gonic/gin"
 //     "github.com/google/wire"
-//     "workerhive.com/api/config"
-//     "workerhive.com/api/pkg/httpserver"
-//     "workerhive.com/api/pkg/logger"
-//     "workerhive.com/api/pkg/postgres"
+//     "github.com/go-chi/chi/v5"
+//     "github.com/go-chi/chi/v5/middleware"
+//     "getnoti.com/config"
+//     notificationroutes "getnoti.com/internal/notifications/infra/http"
+ 
+//     "getnoti.com/pkg/db"
+//     "getnoti.com/pkg/logger"
 // )
 
-// // Define a provider set with the necessary providers.
-// var providerSet = wire.NewSet(
-//     postgres.NewOrGetSingleton,
-//     logger.New,
-//     httpserver.New,
-//     NewRouter, // Add this line
-//     LoadConfig, // Add this line
-// )
+// func InitializeRouter(cfg *config.Config) (*chi.Mux, error) {
+//     wire.Build(
+//         db.NewDatabaseFactory,
+//         logger.New,
+//         ProvideNotificationRouter,
+//         ProvideTemplateRouter,
+//         NewMainRouter,
+//     )
+//     return &chi.Mux{}, nil
+// }
 
-// // Define a basic provider for the Gin router.
-// func NewRouter() *gin.Engine {
-//     router := gin.Default()
+
+
+
+
+// func NewMainRouter(
+//     cfg *config.Config,
+//     database db.Database,
+//     log *logger.Logger,
+//     notificationRouter *chi.Mux,
+//     templateRouter *chi.Mux,
+// ) *chi.Mux {
+//     router := chi.NewRouter()
+
+//     // Use common middleware
+//     router.Use(middleware.RequestID)
+//     router.Use(middleware.RealIP)
+//     router.Use(middleware.Logger)
+//     router.Use(middleware.Recoverer)
+
+//     // Mount domain routers
+//     router.Mount("/notifications", notificationRouter)
+//     router.Mount("/templates", templateRouter)
+
 //     return router
-// }
-
-// // LoadConfig loads the configuration using koanf.
-// func LoadConfig() (*config.Config, error) {
-//     return config.LoadConfig("config.yaml")
-// }
-
-// // Define the initialization functions.
-// func InitializeConfig() (*config.Config, error) {
-//     wire.Build(LoadConfig)
-//     return &config.Config{}, nil
-// }
-
-// func InitializePostgresConnection() (*postgres.Postgres, error) {
-//     wire.Build(providerSet)
-//     return &postgres.Postgres{}, nil
-// }
-
-// func InitializeLogger() (*logger.Logger, error) {
-//     wire.Build(providerSet)
-//     return &logger.Logger{}, nil
-// }
-
-// func InitializeNewRouter() (*gin.Engine, error) {
-//     wire.Build(providerSet)
-//     return &gin.Engine{}, nil
-// }
-
-// func InitializeNewHttpServer() (*httpserver.Server, error) {
-//     wire.Build(providerSet)
-//     return &httpserver.Server{}, nil
 // }

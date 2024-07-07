@@ -38,7 +38,7 @@ func NewRouter(database db.Database) *chi.Mux {
 
     // Initialize services
     tenantService := tenants.NewTenantService(tenantRepo)
-    providerFactory := providers.NewProviderFactory() // Assuming you have a factory initialization
+    providerFactory := providers.NewProviderFactory() 
     providerService := providerService.NewProviderService(providerFactory)
 
     // Initialize use case
