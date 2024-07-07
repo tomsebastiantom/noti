@@ -3,7 +3,7 @@ package sendnotification
 import (
 	"context"
 
-	dto "getnoti.com/internal/notifications/dtos"
+
 )
 
 type SendNotificationController struct {
@@ -14,6 +14,6 @@ func NewSendNotificationController(useCase SendNotificationUseCase) *SendNotific
 	return &SendNotificationController{useCase: useCase}
 }
 
-func (c *SendNotificationController) SendNotification(ctx context.Context, req dto.NotificationDTO) dto.NotificationDTO {
+func (c *SendNotificationController) SendNotification(ctx context.Context, req SendNotificationRequest) SendNotificationResponse  {
 	return c.useCase.Execute(ctx, req)
 }

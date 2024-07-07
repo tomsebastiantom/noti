@@ -26,7 +26,7 @@ func (r *postgresTenantRepository) CreateTenant(ctx context.Context, tenant doma
 
     query := `INSERT INTO tenants (id, name, default_channel, preferences, created_at, updated_at) 
               VALUES (\$1, \$2, \$3, \$4, \$5, \$6)`
-    _, err = r.db.Exec(ctx, query, tenant.ID, tenant.Name, tenant.DefaultChannel, preferences, now, now)
+    _, err = r.db.Exec(ctx, query, tenant.ID, tenant.Name, preferences, now, now)
     return err
 }
 
@@ -35,7 +35,7 @@ func (r *postgresTenantRepository) GetTenantByID(ctx context.Context, tenantid s
     row := r.db.QueryRow(ctx, query, tenantid)
     var tenant domain.Tenant
     var preferences []byte
-	err := row.Scan(&tenant.ID, &tenant.Name, &tenant.DefaultChannel, &preferences)
+	err := row.Scan(&tenant.ID, &tenant.Name, &preferences)
     //err := row.Scan(&tenant.ID, &tenant.Name, &tenant.DefaultChannel, &preferences, &tenant.CreatedAt, &tenant.UpdatedAt)
     if err != nil {
         return domain.Tenant{}, err
@@ -57,7 +57,7 @@ func (r *postgresTenantRepository) Update(ctx context.Context, tenant domain.Ten
     }
 
     query := `UPDATE tenants SET name = \$1, default_channel = \$2, preferences = \$3, updated_at = \$4 WHERE id = \$5`
-    _, err = r.db.Exec(ctx, query, tenant.Name, tenant.DefaultChannel, preferences, now, tenant.ID)
+    _, err = r.db.Exec(ctx, query, tenant.Name, preferences, now, tenant.ID)
     return err
 }
 
@@ -73,7 +73,7 @@ func (r *postgresTenantRepository) GetAllTenants(ctx context.Context) ([]domain.
     for rows.Next() {
         var tenant domain.Tenant
         var preferences []byte
-        err := rows.Scan(&tenant.ID, &tenant.Name, &tenant.DefaultChannel, &preferences)
+        err := rows.Scan(&tenant.ID, &tenant.Name, &preferences)
 		//err := rows.Scan(&tenant.ID, &tenant.Name, &tenant.DefaultChannel, &preferences, &tenant.CreatedAt, &tenant.UpdatedAt)
         if err != nil {
             return nil, err
@@ -87,4 +87,22 @@ func (r *postgresTenantRepository) GetAllTenants(ctx context.Context) ([]domain.
         tenants = append(tenants, tenant)
     }
     return tenants, nil
+}
+
+func (r *postgresTenantRepository) GetPreferenceByChannel(ctx context.Context, tenantID string, channel string) (map[string]string, error) {
+    query := `SELECT preferences FROM tenants WHERE id = \$1`
+    row := r.db.QueryRow(ctx, query, tenantID)
+    var preferences []byte
+    err := row.Scan(&preferences)
+    if err != nil {
+        return nil, err
+    }
+
+    var prefs map[string]map[string]string
+    err = json.Unmarshal(preferences, &prefs)
+    if err != nil {
+        return nil, err
+    }
+
+    return prefs[channel], nil
 }

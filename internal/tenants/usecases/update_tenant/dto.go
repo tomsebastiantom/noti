@@ -7,7 +7,6 @@ import (
 type UpdateTenantRequest struct {
 	ID             string
 	Name           string
-	DefaultChannel string
 	Preferences    map[string]domain.ChannelPreference
 }
 

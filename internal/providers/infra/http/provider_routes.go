@@ -8,10 +8,10 @@ import (
     "getnoti.com/internal/providers/infra/providers"
     "getnoti.com/internal/providers/usecases/send_notification"
     "github.com/go-chi/chi/v5"
-    "github.com/jackc/pgx/v5/pgxpool"
+    "getnoti.com/pkg/db"
 )
 
-func NewRouter(db *pgxpool.Pool) *chi.Mux {
+func NewRouter(database db.Database) *chi.Mux {
     r := chi.NewRouter()
 
     // Initialize provider

@@ -29,7 +29,7 @@ func (uc *updateTenantUseCase) Execute(ctx context.Context, input UpdateTenantRe
     }
 
     tenant.Name = input.Name
-    tenant.DefaultChannel = input.DefaultChannel
+
     tenant.Preferences = input.Preferences
 
     if err := uc.repo.Update(ctx, tenant); err != nil {

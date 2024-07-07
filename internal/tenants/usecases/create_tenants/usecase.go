@@ -33,7 +33,7 @@ func (uc *createTenantsUseCase) Execute(ctx context.Context, input CreateTenants
         domainTenant := domain.Tenant{
             ID:             tenant.ID,
             Name:           tenant.Name,
-            DefaultChannel: tenant.DefaultChannel,
+      
             Preferences:    make(map[string]domain.ChannelPreference),
         }
 

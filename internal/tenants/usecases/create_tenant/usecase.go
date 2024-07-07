@@ -24,13 +24,23 @@ func NewCreateTenantUseCase(repo repository.TenantRepository) CreateTenantUseCas
 
 // Method Implementation
 func (uc *createTenantUseCase) Execute(ctx context.Context, input CreateTenantRequest) (CreateTenantResponse, error) {
-    tenant := domain.Tenant{
-        ID:             input.ID,
-        Name:           input.Name,
-        DefaultChannel: string(input.DefaultChannel),
-        Preferences:    make(map[string]domain.ChannelPreference),
+    // Map CreateTenantRequest to domain.Tenant
+    preferences := make(map[string]domain.ChannelPreference)
+    for key, pref := range input.Preferences {
+        preferences[key] = domain.ChannelPreference{
+            ChannelName: pref.ChannelName,
+            Enabled:     pref.Enabled,
+            ProviderID:  pref.ProviderID,
+        }
     }
 
+    tenant := domain.Tenant{
+        ID:          input.ID,
+        Name:        input.Name,
+        Preferences: preferences,
+    }
+
+    // Create tenant in the repository
     err := uc.repo.CreateTenant(ctx, tenant)
     if err != nil {
         return CreateTenantResponse{}, err

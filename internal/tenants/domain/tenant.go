@@ -3,7 +3,6 @@ package domain
 type Tenant struct {
     ID             string
     Name           string
-    DefaultChannel string
     Preferences    map[string]ChannelPreference
 }
 

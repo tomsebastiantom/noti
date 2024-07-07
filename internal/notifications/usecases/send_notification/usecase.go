@@ -4,17 +4,24 @@ import (
 	"context"
 
 	"getnoti.com/internal/notifications/domain"
-	dto "getnoti.com/internal/notifications/dtos"
-	repository "getnoti.com/internal/notifications/repos"
+	"getnoti.com/internal/notifications/repos"
+	"getnoti.com/internal/shared/utils"
 )
 
 type SendNotificationUseCase interface {
-	Execute(ctx context.Context, req dto.NotificationDTO) dto.NotificationDTO
+	Execute(ctx context.Context, req SendNotificationRequest) SendNotificationResponse
 }
 
 type sendNotificationUseCase struct {
 	notificationRepository repository.NotificationRepository
 	providerRepository     queue.repo
+}
+
+type TenantService interface {
+    GetTenantPreferences(id string) (map[string]string, error)
+}
+type ProviderService interface {
+    GetTenantPreferences(id string) (map[string]string, error)
 }
 
 func NewSendNotificationUseCase(notificationRepository repository.NotificationRepository, providerRepository repository.ProviderRepository) SendNotificationUseCase {
@@ -24,13 +31,13 @@ func NewSendNotificationUseCase(notificationRepository repository.NotificationRe
 	}
 }
 
-func (u *sendNotificationUseCase) Execute(ctx context.Context, req dto.NotificationDTO) dto.NotificationDTO {
+func (u *sendNotificationUseCase) Execute(ctx context.Context, req SendNotificationRequest) SendNotificationResponse {
 	// Fetch default provider ID if not provided
 	providerID := req.ProviderID
 	if providerID == "" {
 		defaultProviderID, err := u.providerRepository.GetDefaultProviderID(ctx, req.TenantID)
 		if err != nil {
-			return dto.NotificationDTO{
+			return SendNotificationResponse{
 				Status: "failed",
 				Error:  "failed to fetch default provider ID: " + err.Error(),
 			}
@@ -45,23 +52,28 @@ func (u *sendNotificationUseCase) Execute(ctx context.Context, req dto.Notificat
 			Value: v.Value,
 		}
 	}
-
+	ID, err := utils.GenerateUUID()
+	if err != nil {
+		return SendNotificationResponse{
+			Status: "failed",
+			Error:  "notification creation failed: " + err.Error(),
+		}
+	}
 	notification := &domain.Notification{
-		ID:         req.ID,
+		ID:         ID,
 		TenantID:   req.TenantID,
 		UserID:     req.UserID,
 		Type:       req.Type,
 		Channel:    req.Channel,
 		TemplateID: req.TemplateID,
-		Status:     req.Status,
 		Content:    req.Content,
 		ProviderID: providerID, // Set the provider ID
 		Variables:  variables,
 	}
 
-	err := u.notificationRepository.CreateNotification(ctx, notification)
+	err = u.notificationRepository.CreateNotification(ctx, notification)
 	if err != nil {
-		return dto.NotificationDTO{
+		return SendNotificationResponse{
 			ID:     notification.ID,
 			Status: "failed",
 			Error:  "notification creation failed: " + err.Error(), // Detailed error message
@@ -71,14 +83,14 @@ func (u *sendNotificationUseCase) Execute(ctx context.Context, req dto.Notificat
 	// Assuming there's a function to send the notification immediately
 	sendErr := u.sendNotification(notification)
 	if sendErr != nil {
-		return dto.NotificationDTO{
+		return SendNotificationResponse{
 			ID:     notification.ID,
 			Status: "failed",
 			Error:  "notification sending failed: " + sendErr.Error(), // Detailed error message
 		}
 	}
 
-	return dto.NotificationDTO{
+	return SendNotificationResponse{
 		ID:     notification.ID,
 		Status: "sent",
 	}

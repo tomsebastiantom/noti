@@ -17,6 +17,7 @@ type Database interface {
 	QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row
 
 }
+var ErrNoRows = pgx.ErrNoRows
 // NewDatabaseFactory creates a new database connection based on the given config
 func NewDatabaseFactory(cfg *config.Config) (Database, error) {
 	var database Database
