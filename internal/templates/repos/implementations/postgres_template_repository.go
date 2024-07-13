@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
+"database/sql"
 	"getnoti.com/internal/templates/domain"
 	"getnoti.com/pkg/db"
 	"getnoti.com/internal/templates/repos"
@@ -39,7 +39,7 @@ func (r *PostgresTemplateRepository) GetTemplateByID(ctx context.Context, templa
 	var variables []byte
 	err := row.Scan(&tmpl.ID, &tmpl.TenantID, &tmpl.Name, &tmpl.Content, &tmpl.IsPublic, &variables)
 	if err != nil {
-		if errors.Is(err, db.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrTemplateNotFound
 		}
 		return nil, wrapError(err, ErrUnexpected)

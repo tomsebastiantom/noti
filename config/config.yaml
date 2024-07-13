@@ -10,13 +10,13 @@ logger:
 
 database:
   type: "postgres" # or "mysql"
-  postgres:
-    pool_max: 10
-    dsn: "postgresql://user:password@localhost:5438/noti2"
-  mysql:
-    dsn: "user:password@tcp(localhost:3306)/dbname"
+  dsn: "postgresql://user:password@localhost:5438/noti2"
 
-rabbitmq:
+amq:
   rpc_server_exchange: "rpc_server"
   rpc_client_exchange: "rpc_client"
   url: "amqp://guest:guest@localhost:5672/"
+  
+vault:
+  address: "http://127.0.0.1:8205"
+  token: "hvs.CAESIFGeOZaNoh9CQfQEP1Q8JLaWq7Ona1LOK0fa5VChk7sWGh4KHGh2cy44VE9EbWlhaFI4TlY1WjFacTBlems3aDc" 

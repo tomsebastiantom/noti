@@ -17,7 +17,8 @@ type Config struct {
 	HTTP     HTTP     `yaml:"http"`
 	Log      Log      `yaml:"logger"`
 	Database Database `yaml:"database"`
-	RMQ      RMQ      `yaml:"rabbitmq"`
+	MQ      MQ         `yaml:"amq"`
+	Vault    Vault    `yaml:"vault"`
 }
 
 // App structure
@@ -38,27 +39,20 @@ type Log struct {
 
 // Database structure
 type Database struct {
-	Type     string `yaml:"type"`
-	Postgres PG     `yaml:"postgres"`
-	MySQL    MySQL  `yaml:"mysql"`
-}
-
-// PG structure
-type PG struct {
-	PoolMax int    `yaml:"pool_max"`
-	DSN     string `yaml:"dsn"`
-}
-
-// MySQL structure
-type MySQL struct {
-	DSN string `yaml:"dsn"`
+	Type string `yaml:"type"`
+	DSN  string `yaml:"dsn"`
 }
 
 // RMQ structure
-type RMQ struct {
+type MQ struct {
 	ServerExchange string `yaml:"rpc_server_exchange"`
 	ClientExchange string `yaml:"rpc_client_exchange"`
 	URL            string `yaml:"url"`
+}
+
+type Vault struct {
+	Address string `yaml:"address"`
+	Token   string `yaml:"token"`
 }
 
 // Global koanf instance. Use "." as the key path delimiter.
@@ -93,19 +87,10 @@ func LoadConfig() (*Config, error) {
 	// Debug print statement to verify the loaded configuration in koanf
 	fmt.Printf("Koanf raw data: %+v\n", k.Raw())
 
-	// Debug print statement to verify the flattened configuration map
-	// confMapFlat := k.All()
-	// fmt.Printf("Flattened configuration map: %+v\n", confMapFlat)
-
 	var cfg Config
 	if err := k.UnmarshalWithConf("", &cfg, koanf.UnmarshalConf{Tag: "yaml"}); err != nil {
 		return nil, fmt.Errorf("error unmarshalling config: %v", err)
 	}
-
-	// Debug print statements to verify the loaded configuration
-	// fmt.Printf("Loaded configuration: %+v\n", cfg)
-	// fmt.Printf("Postgres PoolMax: %d\n", cfg.PG.PoolMax)
-	// fmt.Printf("Postgres URL: %s\n", cfg.PG.URL)
 
 	return &cfg, nil
 }
