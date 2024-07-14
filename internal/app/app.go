@@ -6,7 +6,8 @@ import (
     "getnoti.com/pkg/cache"
     "getnoti.com/pkg/db"
     "getnoti.com/pkg/logger"
-	 "getnoti.com/pkg/vault"
+	"getnoti.com/pkg/vault"
+    "getnoti.com/internal/server/router"
 	"fmt"
 )
 
@@ -14,7 +15,7 @@ type App struct {
     config *config.Config
     logger *logger.Logger
     db     *db.Manager
-	mainDB     *db.Database
+	mainDB     db.Database
     cache  *cache.GenericCache
     server *server.Server
 }
@@ -47,16 +48,16 @@ func (a *App) initialize() error {
     }
 
     // Initialize main database
-    // a.mainDB, err := db.NewDatabaseFactory((*db.DatabaseConfig)(&a.config.Database))
+    a.mainDB, err = db.NewDatabaseFactory((*db.DatabaseConfig)(&a.config.Database))
     if err != nil {
         return fmt.Errorf("failed to initialize main database: %w", err)
     }
 
-    // Initialize router
-    // r := router.New(a.db,a.mainDB)
+    //Initialize router
+    r := router.New(a.mainDB,a.db,(*vault.VaultConfig)(&a.config.Vault))
 
-    // Initialize server
-    // a.server = server.New(a.config, r.Handler())
+    //Initialize server
+    a.server = server.New(a.config, r.Handler())
 
     return nil
 }
