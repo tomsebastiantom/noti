@@ -41,7 +41,7 @@ func (h *Handlers) getTemplateRepo(r *http.Request) (repository.TemplateReposito
 	}
 
 	// Initialize repository
-	templateRepo := postgres.NewPostgresTemplateRepository(database)
+	templateRepo := repos.NewTemplateRepository(database)
 	return templateRepo, nil
 }
 
