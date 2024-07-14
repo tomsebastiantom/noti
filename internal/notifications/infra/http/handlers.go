@@ -11,16 +11,19 @@ import (
 	tenantrepos "getnoti.com/internal/tenants/repos/implementations"
 	tenants "getnoti.com/internal/tenants/services"
 	"getnoti.com/pkg/db"
+	"getnoti.com/pkg/cache"
 	"net/http"
 )
 
 type Handlers struct {
 	DBManager *db.Manager
+	providerCache *cache.GenericCache
 }
 
-func NewHandlers(dbManager *db.Manager) *Handlers {
+func NewHandlers(dbManager *db.Manager,providerCache *cache.GenericCache) *Handlers {
 	return &Handlers{
 		DBManager: dbManager,
+		providerCache: providerCache,
 	}
 }
 
@@ -40,7 +43,7 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	tenantRepo := tenantrepos.NewTenantPreferenceRepository(database)
 	// Initialize services
 	tenantService := tenants.NewTenantService(tenantRepo)
-	providerFactory := providers.NewProviderFactory()
+	providerFactory := providers.NewProviderFactory(h.providerCache)
 	providerService := providerService.NewProviderService(providerFactory)
 
 	// Initialize use case

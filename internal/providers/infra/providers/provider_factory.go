@@ -1,30 +1,29 @@
 package providers
 
 import (
-    // "context"
-    "sync"
+
     // "getnoti.com/internal/providers/dtos"
+	"getnoti.com/pkg/cache"
     "github.com/twilio/twilio-go"
 )
 
 type ProviderFactory struct {
-    mu       sync.Mutex
-    clients  map[string]Provider
+    providerCache *cache.GenericCache  
 }
 
-func NewProviderFactory() *ProviderFactory {
+func NewProviderFactory(providerCache *cache.GenericCache) *ProviderFactory {
     return &ProviderFactory{
-        clients: make(map[string]Provider),
+        providerCache: providerCache,
     }
 }
 
 func (f *ProviderFactory) GetProvider(providerID string, tenantID string, channel string) Provider {
-    f.mu.Lock()
-    defer f.mu.Unlock()
-
     key := providerID + ":" + tenantID + ":" + channel
-    if provider, exists := f.clients[key]; exists {
-        return provider
+    
+    if cachedProvider, exists := f.providerCache.Get(key); exists {
+        if provider, ok := cachedProvider.(Provider); ok {
+            return provider
+        }
     }
 
     var provider Provider
@@ -32,15 +31,12 @@ func (f *ProviderFactory) GetProvider(providerID string, tenantID string, channe
     case "twilio":
         client := twilio.NewRestClientWithParams(twilio.ClientParams{})
         provider = NewTwilioProviderWithClient(client)
-    // case "amazon_ses":
-    //     provider = NewAmazonSESProvider()
-    // case "mailgun":
-    //     provider = NewMailgunProvider()
     // Add more providers as needed
     default:
         return nil
     }
 
-    f.clients[key] = provider
+    // Cache the new provider
+    f.providerCache.Set(key, provider,1) 
     return provider
 }

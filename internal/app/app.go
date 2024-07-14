@@ -54,7 +54,7 @@ func (a *App) initialize() error {
     }
 
     //Initialize router
-    r := router.New(a.mainDB,a.db,(*vault.VaultConfig)(&a.config.Vault))
+    r := router.New(a.mainDB,a.db,(*vault.VaultConfig)(&a.config.Vault),a.cache)
 
     //Initialize server
     a.server = server.New(a.config, r.Handler())

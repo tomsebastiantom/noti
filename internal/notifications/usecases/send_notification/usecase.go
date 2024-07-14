@@ -106,7 +106,7 @@ func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificat
             Error:  "notification sending failed: " + sendResp.Message, // Detailed error message
         }
     }
-
+//update notification repo saying it was send sucessfully
     return SendNotificationResponse{
         ID:     notification.ID,
         Status: "sent",
