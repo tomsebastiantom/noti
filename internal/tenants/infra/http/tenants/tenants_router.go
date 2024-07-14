@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	// repository "getnoti.com/internal/tenants/repos"
-	// custom "getnoti.com/internal/shared/middleware"
-	custom "getnoti.com/internal/shared/middleware"
+"getnoti.com/internal/shared/middleware"
 	"getnoti.com/internal/tenants/repos"
 	"getnoti.com/internal/tenants/repos/implementations"
 	"getnoti.com/internal/tenants/usecases/create_tenant"
@@ -36,7 +34,7 @@ func NewHandlers(mainDB db.Database, dbManager *db.Manager, vault *vault.VaultCo
 
 // Helper function to retrieve tenant ID and database connection
 func (h *Handlers) getTenantRepo(r *http.Request) (repository.TenantRepository, error) {
-	tenantID := r.Context().Value(custom.TenantIDKey).(string)
+	tenantID := r.Context().Value(middleware.TenantIDKey).(string)
 
 	// Retrieve the database connection
 	database, err := h.DBManager.GetDatabaseConnection(tenantID)

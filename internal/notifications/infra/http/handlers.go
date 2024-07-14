@@ -7,7 +7,7 @@ import (
 	"getnoti.com/internal/notifications/usecases/send_notification"
 	"getnoti.com/internal/providers/infra/providers"
 	providerService "getnoti.com/internal/providers/services"
-	custom "getnoti.com/internal/shared/middleware"
+	"getnoti.com/internal/shared/middleware"
 	tenantrepos "getnoti.com/internal/tenants/repos/implementations"
 	tenants "getnoti.com/internal/tenants/services"
 	"getnoti.com/pkg/db"
@@ -25,7 +25,7 @@ func NewHandlers(dbManager *db.Manager) *Handlers {
 }
 
 func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value(custom.TenantIDKey).(string)
+	tenantID := r.Context().Value(middleware.TenantIDKey).(string)
 
 	// Retrieve the database connection
 	database, err := h.DBManager.GetDatabaseConnection(tenantID)

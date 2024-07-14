@@ -8,7 +8,7 @@ import (
 
 	"getnoti.com/config"
 	"getnoti.com/internal/notifications/infra/http"
-	custom "getnoti.com/internal/shared/middleware"
+	customMiddleware"getnoti.com/internal/shared/middleware"
 	"getnoti.com/internal/templates/infra/http"
 	"getnoti.com/internal/tenants/infra/http/tenants"
 	"getnoti.com/internal/tenants/infra/http/users"
@@ -77,7 +77,7 @@ func main() {
 	router.Use(middleware.RealIP)
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
-	router.Use(custom.TenantID)
+	router.Use(customMiddleware.TenantID)
 
 	// Create version-specific routers
 	v1Router := chi.NewRouter()
@@ -114,3 +114,40 @@ func main() {
 
 	log.Info("Server exited properly")
 }
+
+
+// package main
+
+// import (
+//     "fmt"
+//     "log"
+
+
+//     "getnoti.com/internal/server/app"
+//     "getnoti.com/config"
+// )
+
+// func main() {
+//     if err := run(); err != nil {
+//         log.Fatalf("Application error: %v", err)
+//     }
+// }
+
+// func run() error {
+//     cfg, err := config.LoadConfig()
+//     if err != nil {
+//         return fmt.Errorf("failed to load configuration: %w", err)
+//     }
+
+//     application, err := app.New(cfg)
+//     if err != nil {
+//         return fmt.Errorf("failed to initialize application: %w", err)
+//     }
+//     defer application.Cleanup()
+
+//     if err := application.Run(); err != nil {
+//         return fmt.Errorf("application run error: %w", err)
+//     }
+
+//     return nil
+// }
