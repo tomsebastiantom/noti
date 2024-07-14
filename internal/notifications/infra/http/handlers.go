@@ -20,13 +20,13 @@ import (
 
 type Handlers struct {
 	DBManager *db.Manager
-	providerCache *cache.GenericCache
+	GenericCache  *cache.GenericCache
 }
 
-func NewHandlers(dbManager *db.Manager,providerCache *cache.GenericCache) *Handlers {
+func NewHandlers(dbManager *db.Manager,genericCache *cache.GenericCache) *Handlers {
 	return &Handlers{
 		DBManager: dbManager,
-		providerCache: providerCache,
+		GenericCache : genericCache ,
 	}
 }
 
@@ -48,11 +48,11 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	templatesRepo := templatesrepo.NewTemplateRepository(database)
 	// Initialize services
 	tenantService := tenants.NewTenantService(tenantRepo)
-	providerFactory := providers.NewProviderFactory(h.providerCache)
+	providerFactory := providers.NewProviderFactory(h.GenericCache)
 	providerService := providerService.NewProviderService(providerFactory)
     templateService := templates.NewTemplateService(templatesRepo)
 	// Initialize use case
-	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(tenantService, providerService,templateService, notificationRepo)
+	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(tenantService, providerService,templateService, notificationRepo,h.GenericCache)
 
 	// Initialize controller
 	sendNotificationController := sendnotification.NewSendNotificationController(sendNotificationUseCase)
