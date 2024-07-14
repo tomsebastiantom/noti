@@ -44,6 +44,7 @@ func (uc *updateTemplateUseCase) Execute(ctx context.Context, req UpdateTemplate
         existingTemplate.IsPublic = *req.IsPublic
     }
     if req.Variables != nil {
+       
         existingTemplate.Variables = *req.Variables
     }
 

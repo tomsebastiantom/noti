@@ -3,16 +3,19 @@ package notificationroutes
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+
 	"getnoti.com/internal/notifications/repos/implementations"
 	"getnoti.com/internal/notifications/usecases/send_notification"
 	"getnoti.com/internal/providers/infra/providers"
 	providerService "getnoti.com/internal/providers/services"
 	"getnoti.com/internal/shared/middleware"
+	templates "getnoti.com/internal/templates/services"
 	tenantrepos "getnoti.com/internal/tenants/repos/implementations"
+	templatesrepo "getnoti.com/internal/templates/repos/implementations"
 	tenants "getnoti.com/internal/tenants/services"
-	"getnoti.com/pkg/db"
 	"getnoti.com/pkg/cache"
-	"net/http"
+	"getnoti.com/pkg/db"
 )
 
 type Handlers struct {
@@ -41,13 +44,15 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	notificationRepo := repos.NewNotificationRepository(database)
 	// tenantRepo := repos.NewTenantRepository(database)
 	tenantRepo := tenantrepos.NewTenantPreferenceRepository(database)
+
+	templatesRepo := templatesrepo.NewTemplateRepository(database)
 	// Initialize services
 	tenantService := tenants.NewTenantService(tenantRepo)
 	providerFactory := providers.NewProviderFactory(h.providerCache)
 	providerService := providerService.NewProviderService(providerFactory)
-
+    templateService := templates.NewTemplateService(templatesRepo)
 	// Initialize use case
-	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(tenantService, providerService, notificationRepo)
+	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(tenantService, providerService,templateService, notificationRepo)
 
 	// Initialize controller
 	sendNotificationController := sendnotification.NewSendNotificationController(sendNotificationUseCase)

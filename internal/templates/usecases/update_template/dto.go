@@ -13,6 +13,8 @@ type UpdateTemplateRequest struct {
     Variables  *[]string
 }
 
+
+
 type UpdateTemplateResponse struct {
     Template domain.Template
     Success  bool

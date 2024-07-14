@@ -26,6 +26,8 @@ func (uc *createTemplateUseCase) Execute(ctx context.Context, req CreateTemplate
         return CreateTemplateResponse{Success: false, Message: ErrUnexpected.Error()}
     }
 
+  
+
     tmpl := &domain.Template{
         ID:        tmplID,
         TenantID:  req.TenantID,
@@ -42,3 +44,4 @@ func (uc *createTemplateUseCase) Execute(ctx context.Context, req CreateTemplate
 
     return CreateTemplateResponse{Success: true, Message: "Template created successfully"}
 }
+

@@ -8,6 +8,8 @@ type CreateTemplateRequest struct {
     Variables []string
 }
 
+
+
 type CreateTemplateResponse struct {
     Success bool
     Message string

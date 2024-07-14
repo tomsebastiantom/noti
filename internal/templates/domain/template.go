@@ -10,3 +10,8 @@ type Template struct {
     IsPublic  bool
     Variables  []string
 }
+
+type TemplateVariable struct {
+	Key   string
+	Value string
+}
