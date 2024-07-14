@@ -7,14 +7,16 @@ import (
 	"syscall"
 
 	"getnoti.com/config"
-	// "getnoti.com/pkg/migration"
-	notificationroutes "getnoti.com/internal/notifications/infra/http"
+	"getnoti.com/internal/notifications/infra/http"
+	custom "getnoti.com/internal/shared/middleware"
+	"getnoti.com/internal/templates/infra/http"
+	"getnoti.com/internal/tenants/infra/http/tenants"
+	"getnoti.com/internal/tenants/infra/http/users"
+	"getnoti.com/pkg/cache"
 	"getnoti.com/pkg/db"
 	"getnoti.com/pkg/httpserver"
 	"getnoti.com/pkg/logger"
-	"getnoti.com/pkg/cache"
 	"getnoti.com/pkg/vault"
-	custom "getnoti.com/internal/shared/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -23,13 +25,11 @@ func main() {
 	// Load configuration
 	cfg, err := config.LoadConfig()
 
-
 	if err != nil {
 		fmt.Printf("Failed to load configuration: %v\n", err)
 		os.Exit(1)
 	}
-    
-	
+
 	// fmt.Printf("App Name: %s\n", cfg.App.Name)
 	// fmt.Printf("App Version: %s\n", cfg.App.Version)
 	// fmt.Printf("HTTP Port: %s\n", cfg.HTTP.Port)
@@ -40,22 +40,25 @@ func main() {
 	// fmt.Printf("RabbitMQ Client Exchange: %s\n", cfg.RMQ.ClientExchange)
 	// fmt.Printf("RabbitMQ URL: %s\n", cfg.RMQ.URL)
 
+	// Initialize the main database
+	mainDB, err := db.NewDatabaseFactory((*db.DatabaseConfig)(&cfg.Database))
+	if err != nil {
+		fmt.Printf("Failed to initialize main database: %v\n", err)
+		os.Exit(1)
+	}
+	defer mainDB.(*db.SQLDatabase).Close()
 
-
- 
-	 // Initialize cache
-	 genericCache := cache.NewGenericCache(1e7, 1<<30, 64)
+	// Initialize cache
+	genericCache := cache.NewGenericCache(1e7, 1<<30, 64)
 
 	// migrate.Migrate(cfg.Database.DSN)
-	
 
 	// Initialize logger
 
 	log := logger.New(cfg)
 
-    // Initialize the database manager
-     dbManager := db.NewManager(genericCache, (*vault.VaultConfig)(&cfg.Vault))
-	
+	// Initialize the database manager
+	dbManager := db.NewManager(genericCache, (*vault.VaultConfig)(&cfg.Vault))
 
 	if err != nil {
 		fmt.Printf("Failed to initialize database: %v\n", err)
@@ -66,7 +69,6 @@ func main() {
 		os.Exit(1)
 	}
 	// defer database.Close()
-
 	// Create main router
 	router := chi.NewRouter()
 
@@ -77,14 +79,21 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(custom.TenantID)
 
-	// Mount notification routes
+	// Create version-specific routers
+	v1Router := chi.NewRouter()
+
+	// Mount routes
 	notificationRouter := notificationroutes.NewRouter(dbManager)
+	tenantRouter := tenantroutes.NewRouter(mainDB,dbManager,(*vault.VaultConfig)(&cfg.Vault))
+	userRouter := userroutes.NewRouter(dbManager)
+	templateRouter := templateroutes.NewRouter(dbManager)
 
-	router.Mount("/notifications", notificationRouter)
+	v1Router.Mount("/notifications", notificationRouter)
+	v1Router.Mount("/users", userRouter)
+	v1Router.Mount("/tenants", tenantRouter)
+	v1Router.Mount("/templates", templateRouter)
 
-	// Mount other domain routers here as needed
-	// userRouter := users.NewRouter(db.Pool)
-	// router.Mount("/users", userRouter)
+	router.Mount("/v1", v1Router)
 
 	// Create HTTP server
 	httpServer := httpserver.New(cfg, router)

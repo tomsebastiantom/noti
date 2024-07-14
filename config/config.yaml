@@ -9,8 +9,8 @@ logger:
   log_level: "debug"
 
 database:
-  type: "postgres" # or "mysql"
-  dsn: "postgresql://user:password@localhost:5438/noti2"
+  type: "sqlite3" # or "postgres", "mysql", etc.
+  dsn: "noti.db"  # For SQLite, this will be the database file name
 
 amq:
   rpc_server_exchange: "rpc_server"
@@ -19,4 +19,4 @@ amq:
   
 vault:
   address: "http://127.0.0.1:8205"
-  token: "hvs" 
+  token: "hvs.CAESIFGeOZaNoh9CQfQEP1Q8JLaWq7Ona1LOK0fa5VChk7sWGh4KHGh2cy44VE9EbWlhaFI4TlY1WjFacTBlems3aDc" 

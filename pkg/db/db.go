@@ -16,26 +16,74 @@ import (
 
 // Database interface defines the methods for database operations.
 type Database interface {
-    Query(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-    Exec(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
-    QueryRow(ctx context.Context, query string, args ...interface{}) *sql.Row
+	Query(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	Exec(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	QueryRow(ctx context.Context, query string, args ...interface{}) *sql.Row
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
+	Prepare(ctx context.Context, query string) (*sql.Stmt, error)
+	Close() error
+	Ping(ctx context.Context) error
+}
+
+// Transaction interface defines methods for database transactions.
+type Transaction interface {
+	Exec(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	Query(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(ctx context.Context, query string, args ...interface{}) *sql.Row
+	Commit() error
+	Rollback() error
 }
 
 // SQLDatabase wraps the sql.DB to implement the Database interface.
 type SQLDatabase struct {
-    *sql.DB
+	*sql.DB
 }
 
+// Implement the Database interface methods for SQLDatabase
 func (db *SQLDatabase) Query(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
-    return db.DB.QueryContext(ctx, query, args...)
+	return db.DB.QueryContext(ctx, query, args...)
 }
 
 func (db *SQLDatabase) Exec(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
-    return db.DB.ExecContext(ctx, query, args...)
+	return db.DB.ExecContext(ctx, query, args...)
 }
 
 func (db *SQLDatabase) QueryRow(ctx context.Context, query string, args ...interface{}) *sql.Row {
-    return db.DB.QueryRowContext(ctx, query, args...)
+	return db.DB.QueryRowContext(ctx, query, args...)
+}
+
+func (db *SQLDatabase) BeginTx(ctx context.Context, opts *sql.TxOptions) (Transaction, error) {
+	tx, err := db.DB.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+	return &SQLTransaction{tx}, nil
+}
+
+func (db *SQLDatabase) Prepare(ctx context.Context, query string) (*sql.Stmt, error) {
+	return db.DB.PrepareContext(ctx, query)
+}
+
+func (db *SQLDatabase) Ping(ctx context.Context) error {
+	return db.DB.PingContext(ctx)
+}
+
+// SQLTransaction wraps sql.Tx to implement the Transaction interface
+type SQLTransaction struct {
+	*sql.Tx
+}
+
+// Implement the Transaction interface methods for SQLTransaction
+func (tx *SQLTransaction) Exec(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	return tx.Tx.ExecContext(ctx, query, args...)
+}
+
+func (tx *SQLTransaction) Query(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+	return tx.Tx.QueryContext(ctx, query, args...)
+}
+
+func (tx *SQLTransaction) QueryRow(ctx context.Context, query string, args ...interface{}) *sql.Row {
+	return tx.Tx.QueryRowContext(ctx, query, args...)
 }
 
 // NewDatabaseFactory initializes a new database connection based on the provided configuration.

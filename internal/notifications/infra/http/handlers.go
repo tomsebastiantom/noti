@@ -10,7 +10,7 @@ import (
     "getnoti.com/internal/providers/infra/providers"
     providerService "getnoti.com/internal/providers/services"
     tenants "getnoti.com/internal/tenants/services"
-    pg "getnoti.com/internal/tenants/repos/implementations"
+    repos "getnoti.com/internal/tenants/repos/implementations"
     custom "getnoti.com/internal/shared/middleware"
 )
 
@@ -36,8 +36,8 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 
     // Initialize repositories
     notificationRepo := postgres.NewPostgresNotificationRepository(database)
-    tenantRepo := pg.NewPostgresTenantRepository(database)
-
+    // tenantRepo := repos.NewTenantRepository(database)
+	tenantRepo := repos.NewTenantPreferenceRepository(database)
     // Initialize services
     tenantService := tenants.NewTenantService(tenantRepo)
     providerFactory := providers.NewProviderFactory()
