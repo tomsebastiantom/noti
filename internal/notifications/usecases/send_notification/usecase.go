@@ -3,6 +3,7 @@ package sendnotification
 import (
 	"context"
 	"fmt"
+
 	"getnoti.com/internal/notifications/domain"
 	"getnoti.com/internal/notifications/repos"
 	"getnoti.com/internal/providers/dtos"
@@ -11,6 +12,7 @@ import (
 	"getnoti.com/internal/templates/services"
 	"getnoti.com/internal/tenants/services"
 	"getnoti.com/pkg/cache"
+	"getnoti.com/pkg/queue"
 )
 
 type SendNotificationUseCase struct {
@@ -19,20 +21,22 @@ type SendNotificationUseCase struct {
 	templateService        *templates.TemplateService
 	notificationRepository repository.NotificationRepository
 	preferencesCache       *cache.GenericCache
+	notificationQueue           *queue.Queue
 }
 
-func NewSendNotificationUseCase(tenantService *tenants.TenantService, providerService *providers.ProviderService, templateService *templates.TemplateService, notificationRepository repository.NotificationRepository, preferencesCache *cache.GenericCache) *SendNotificationUseCase {
+func NewSendNotificationUseCase(tenantService *tenants.TenantService, providerService *providers.ProviderService, templateService *templates.TemplateService, notificationRepository repository.NotificationRepository, preferencesCache *cache.GenericCache, queue *queue.Queue) *SendNotificationUseCase {
 	return &SendNotificationUseCase{
 		tenantService:          tenantService,
 		providerService:        providerService,
 		templateService:        templateService,
 		notificationRepository: notificationRepository,
 		preferencesCache:       preferencesCache,
+		notificationQueue:           queue,
 	}
 }
 
 func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificationRequest) SendNotificationResponse {
-	providerID, err := u.getProviderID(ctx, req,u.preferencesCache)
+	providerID, err := u.getProviderID(ctx, req, u.preferencesCache)
 	if err != nil {
 		return SendNotificationResponse{
 			Status: "failed",
@@ -65,7 +69,7 @@ func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificat
 		ProviderID: providerID,
 	}
 
-	// // Enqueue the notification for processing
+	// Enqueue the notification for processing
 	// err = u.notificationQueue.Enqueue(ctx, sendReq)
 	// if err != nil {
 	//     return SendNotificationResponse{
@@ -90,44 +94,43 @@ func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificat
 }
 
 func (u *SendNotificationUseCase) getProviderID(ctx context.Context, req SendNotificationRequest, preferencesCache *cache.GenericCache) (string, error) {
-    if req.ProviderID != "" {
-        return req.ProviderID, nil
-    }
+	if req.ProviderID != "" {
+		return req.ProviderID, nil
+	}
 
-    cacheKey := fmt.Sprintf("preferences:%s:%s", req.TenantID, req.Channel)
+	cacheKey := fmt.Sprintf("preferences:%s:%s", req.TenantID, req.Channel)
 
-    // Try to get from cache first
-    if cachedPrefs, found := preferencesCache.Get(cacheKey); found {
-        preferences := cachedPrefs.(map[string]string)
-        return u.extractProviderIDFromPreferences(preferences)
-    }
+	// Try to get from cache first
+	if cachedPrefs, found := preferencesCache.Get(cacheKey); found {
+		preferences := cachedPrefs.(map[string]string)
+		return u.extractProviderIDFromPreferences(preferences)
+	}
 
-    // If not in cache, fetch from tenant service
-    preferences, err := u.tenantService.GetPreferences(ctx, req.TenantID, req.Channel)
-    if err != nil {
-        return "", fmt.Errorf("failed to fetch preferences: %w", err)
-    }
+	// If not in cache, fetch from tenant service
+	preferences, err := u.tenantService.GetPreferences(ctx, req.TenantID, req.Channel)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch preferences: %w", err)
+	}
 
-    // Cache the preferences
-    preferencesCache.Set(cacheKey, preferences, 1)
+	// Cache the preferences
+	preferencesCache.Set(cacheKey, preferences, 1)
 
-    return u.extractProviderIDFromPreferences(preferences)
+	return u.extractProviderIDFromPreferences(preferences)
 }
 
 func (u *SendNotificationUseCase) extractProviderIDFromPreferences(preferences map[string]string) (string, error) {
-    providerID, exists := preferences["ProviderID"]
-    if !exists {
-        return "", fmt.Errorf("provider ID not found in preferences")
-    }
+	providerID, exists := preferences["ProviderID"]
+	if !exists {
+		return "", fmt.Errorf("provider ID not found in preferences")
+	}
 
-    enabled, exists := preferences["Enabled"]
-    if !exists || enabled != "true" {
-        return "", fmt.Errorf("channel not enabled or preference not found")
-    }
+	enabled, exists := preferences["Enabled"]
+	if !exists || enabled != "true" {
+		return "", fmt.Errorf("channel not enabled or preference not found")
+	}
 
-    return providerID, nil
+	return providerID, nil
 }
-
 
 func (u *SendNotificationUseCase) createNotification(ctx context.Context, req SendNotificationRequest, providerID string) (*domain.Notification, error) {
 	variables := make([]domain.TemplateVariable, len(req.Variables))

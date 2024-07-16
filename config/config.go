@@ -2,13 +2,13 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"runtime"
-
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
+	"os"
+	"path/filepath"
+	"runtime"
+	"time"
 )
 
 // Config structure
@@ -17,7 +17,7 @@ type Config struct {
 	HTTP     HTTP     `yaml:"http"`
 	Log      Log      `yaml:"logger"`
 	Database Database `yaml:"database"`
-	MQ      MQ         `yaml:"amq"`
+	Queue    Queue    `yaml:"queue"`
 	Vault    Vault    `yaml:"vault"`
 }
 
@@ -43,11 +43,10 @@ type Database struct {
 	DSN  string `yaml:"dsn"`
 }
 
-// RMQ structure
-type MQ struct {
-	ServerExchange string `yaml:"rpc_server_exchange"`
-	ClientExchange string `yaml:"rpc_client_exchange"`
-	URL            string `yaml:"url"`
+// Queue structure
+type Queue struct {
+	URL               string        `yaml:"url"`
+	ReconnectInterval time.Duration `yaml:"reconnect_interval"`
 }
 
 type Vault struct {

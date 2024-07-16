@@ -10,23 +10,26 @@ import (
 	"getnoti.com/internal/providers/infra/providers"
 	providerService "getnoti.com/internal/providers/services"
 	"getnoti.com/internal/shared/middleware"
+	templatesrepo "getnoti.com/internal/templates/repos/implementations"
 	templates "getnoti.com/internal/templates/services"
 	tenantrepos "getnoti.com/internal/tenants/repos/implementations"
-	templatesrepo "getnoti.com/internal/templates/repos/implementations"
 	tenants "getnoti.com/internal/tenants/services"
 	"getnoti.com/pkg/cache"
 	"getnoti.com/pkg/db"
+	"getnoti.com/pkg/queue"
 )
 
 type Handlers struct {
-	DBManager *db.Manager
-	GenericCache  *cache.GenericCache
+	DBManager    *db.Manager
+	GenericCache *cache.GenericCache
+	queueManager *queue.QueueManager
 }
 
-func NewHandlers(dbManager *db.Manager,genericCache *cache.GenericCache) *Handlers {
+func NewHandlers(dbManager *db.Manager, genericCache *cache.GenericCache, queueManager *queue.QueueManager) *Handlers {
 	return &Handlers{
-		DBManager: dbManager,
-		GenericCache : genericCache ,
+		DBManager:    dbManager,
+		GenericCache: genericCache,
+		queueManager: queueManager,
 	}
 }
 
@@ -39,7 +42,7 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
 		return
 	}
-
+	notificationQueue, err := h.queueManager.GetOrCreateQueue(tenantID)
 	// Initialize repositories
 	notificationRepo := repos.NewNotificationRepository(database)
 	// tenantRepo := repos.NewTenantRepository(database)
@@ -50,9 +53,9 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	tenantService := tenants.NewTenantService(tenantRepo)
 	providerFactory := providers.NewProviderFactory(h.GenericCache)
 	providerService := providerService.NewProviderService(providerFactory)
-    templateService := templates.NewTemplateService(templatesRepo)
+	templateService := templates.NewTemplateService(templatesRepo)
 	// Initialize use case
-	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(tenantService, providerService,templateService, notificationRepo,h.GenericCache)
+	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(tenantService, providerService, templateService, notificationRepo, h.GenericCache, &notificationQueue)
 
 	// Initialize controller
 	sendNotificationController := sendnotification.NewSendNotificationController(sendNotificationUseCase)

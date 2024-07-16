@@ -6,6 +6,7 @@ toolchain go1.22.0
 
 require (
 	github.com/denisenkom/go-mssqldb v0.12.3
+	github.com/dgraph-io/ristretto v0.1.1
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/godror/godror v0.44.1
@@ -18,6 +19,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/rs/zerolog v1.26.1
+	github.com/streadway/amqp v1.1.0
 	github.com/twilio/twilio-go v1.22.2
 )
 
@@ -29,7 +31,6 @@ require (
 require (
 	github.com/cenkalti/backoff/v3 v3.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/dgraph-io/ristretto v0.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
