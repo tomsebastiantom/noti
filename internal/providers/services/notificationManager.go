@@ -28,7 +28,7 @@ func NewNotificationManager(nq queue.Queue, pf *providers.ProviderFactory, wpm *
 	}
 }
 
-func (nm *NotificationManager) SendNotification(ctx context.Context, req dtos.SendNotificationRequest) error {
+func (nm *NotificationManager) DispatchNotification(ctx context.Context, req dtos.SendNotificationRequest) error {
 	messageBytes, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to marshal notification request: %w", err)
@@ -47,6 +47,7 @@ func (nm *NotificationManager) ensureConsumerAndWorkerPool(ctx context.Context, 
 	defer nm.mu.Unlock()
 
 	pool, exists := nm.workerPoolManager.GetPool(providerID)
+
 	if !exists {
 		config := workerpool.WorkerPoolConfig{
 			Name:           providerID,
@@ -59,44 +60,41 @@ func (nm *NotificationManager) ensureConsumerAndWorkerPool(ctx context.Context, 
 			ScaleInterval:  30 * time.Second,
 		}
 		pool = nm.workerPoolManager.GetOrCreatePool(config)
+	}
+	err := nm.notificationQueue.DeclareQueue(ctx, providerID, tenantID, true, false, false)
 
-		err := nm.notificationQueue.DeclareQueue(ctx, providerID, tenantID, true, false, false)
-		if err != nil {
-			return fmt.Errorf("failed to declare queue: %w", err)
-		}
+	if err != nil {
+		return fmt.Errorf("failed to declare queue: %w", err)
+	}
 
-		err = nm.notificationQueue.InitializeConsumer(ctx, providerID, tenantID, func(msg queue.Message) {
-			nm.handleMessage(providerID, msg)
-		}, pool)
-		if err != nil {
-			return fmt.Errorf("failed to initialize consumer: %w", err)
-		}
+	err = nm.notificationQueue.InitializeConsumer(ctx, providerID, tenantID, func(msg queue.Message) {
+		nm.handleMessage(msg)
+	}, pool)
+
+	if err != nil {
+		return fmt.Errorf("failed to initialize consumer: %w", err)
+
 	}
 	return nil
 }
 
-func (nm *NotificationManager) handleMessage(providerID string, msg queue.Message) {
+func (nm *NotificationManager) handleMessage(msg queue.Message) {
 	var req dtos.SendNotificationRequest
 	err := json.Unmarshal(msg.Body, &req)
 	if err != nil {
-		fmt.Printf("Failed to unmarshal message: %v, providerID: %s\n", err, providerID)
+		fmt.Printf("Failed to unmarshal message: %v\n", err)
 		return
 	}
 
-	job := &NotificationJob{
-		req:             req,
-		providerFactory: nm.providerFactory,
-	}
-
-	pool, exists := nm.workerPoolManager.GetPool(providerID)
-	if !exists {
-		fmt.Printf("Worker pool not found for providerID: %s\n", providerID)
+	provider := nm.providerFactory.GetProvider(req.ProviderID, req.Sender, req.Channel)
+	if provider == nil {
+		fmt.Printf("Failed to get provider instance for provider %s\n", req.ProviderID)
 		return
 	}
 
-	err = pool.Submit(job)
-	if err != nil {
-		fmt.Printf("Failed to submit job to worker pool: %v, providerID: %s\n", err, providerID)
+	resp := provider.SendNotification(context.Background(), req)
+	if !resp.Success {
+		fmt.Printf("Failed to send notification: %s\n", resp.Message)
 	}
 }
 

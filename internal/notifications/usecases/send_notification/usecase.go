@@ -67,7 +67,7 @@ func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificat
 		ProviderID: providerID,
 	}
 
-	sendResp := u.providerService.SendNotification(ctx, req.TenantID, providerID, sendReq)
+	sendResp := u.providerService.DispatchNotification(ctx, req.TenantID, providerID, sendReq)
 	if !sendResp.Success {
 		return SendNotificationResponse{
 			ID:     notification.ID,

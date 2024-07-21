@@ -20,11 +20,11 @@ func NewProviderService(factory *providers.ProviderFactory, queue queue.Queue, w
     }
 }
 
-func (s *ProviderService) SendNotification(ctx context.Context, tenantID string, providerID string, req dtos.SendNotificationRequest) dtos.SendNotificationResponse {
+func (s *ProviderService) DispatchNotification(ctx context.Context, tenantID string, providerID string, req dtos.SendNotificationRequest) dtos.SendNotificationResponse {
     req.ProviderID = providerID
     req.Sender = tenantID
 
-    err := s.notificationManager.SendNotification(ctx, req)
+    err := s.notificationManager.DispatchNotification(ctx, req)
     if err != nil {
         return dtos.SendNotificationResponse{Success: false, Message: "Failed to send notification"}
     }
