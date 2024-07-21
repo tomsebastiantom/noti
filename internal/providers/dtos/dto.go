@@ -6,6 +6,7 @@ type SendNotificationRequest struct {
     Channel string
     Content   string
     ProviderID string
+    TenantID string
 }
 
 type SendNotificationResponse struct {

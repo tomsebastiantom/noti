@@ -61,6 +61,7 @@ func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificat
 	sendReq := dtos.SendNotificationRequest{
 		Sender:     req.TenantID,
 		Receiver:   req.UserID,
+		TenantID:   req.TenantID,
 		Channel:    req.Channel,
 		Content:    content,
 		ProviderID: providerID,

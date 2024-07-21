@@ -8,6 +8,7 @@ import (
 	"getnoti.com/pkg/circuitbreaker"
 	"getnoti.com/pkg/logger"
 	"github.com/streadway/amqp"
+	"getnoti.com/pkg/workerpool"
 )
 
 type Message struct {
@@ -19,7 +20,7 @@ type Queue interface {
 	Publish(ctx context.Context, channelName, routingKey string, msg Message) error
 	Consume(ctx context.Context, channelName, queueName string) (<-chan Message, error)
 	DeclareQueue(ctx context.Context, channelName, queueName string, durable, autoDelete, exclusive bool) error
-	InitializeConsumer(ctx context.Context, channelName, queueName string, handler func(Message)) error
+	InitializeConsumer(ctx context.Context, channelName, queueName string, handler func(Message),workerPool *workerpool.WorkerPool) error
 	Close() error
 }
 
@@ -247,7 +248,7 @@ func (q *AMQPQueue) Close() error {
 	return q.conn.Close()
 }
 
-func (q *AMQPQueue) InitializeConsumer(ctx context.Context, channelName, queueName string, handler func(Message)) error {
+func (q *AMQPQueue) InitializeConsumer(ctx context.Context, channelName, queueName string, handler func(Message), workerPool *workerpool.WorkerPool) error {
     return q.circuitBreaker.Execute(func() error {
         ch, err := q.GetOrCreateChannel(channelName)
         if err != nil {
@@ -257,7 +258,7 @@ func (q *AMQPQueue) InitializeConsumer(ctx context.Context, channelName, queueNa
         msgs, err := ch.Consume(
             queueName, // queue
             "",        // consumer
-            true,      // auto-ack
+            false,     // auto-ack (changed to false for manual acknowledgment)
             false,     // exclusive
             false,     // no-local
             false,     // no-wait
@@ -275,7 +276,20 @@ func (q *AMQPQueue) InitializeConsumer(ctx context.Context, channelName, queueNa
                         q.log.Warn("Channel closed for queue: %s", queueName)
                         return
                     }
-                    handler(Message{Body: msg.Body})
+                    // Create a job for the worker pool
+                    job := &ConsumerJob{
+                        message: Message{Body: msg.Body},
+                        handler: handler,
+                        ack: func() {
+                            msg.Ack(false)
+                        },
+                    }
+                    // Submit the job to the worker pool
+                    err := workerPool.Submit(job)
+                    if err != nil {
+                        q.log.Error("Failed to submit job to worker pool: %v", err)
+                        msg.Nack(false, true) // Negative acknowledge and requeue the message
+                    }
                 case <-ctx.Done():
                     q.log.Info("Context cancelled for consumer on queue: %s", queueName)
                     return
@@ -286,3 +300,17 @@ func (q *AMQPQueue) InitializeConsumer(ctx context.Context, channelName, queueNa
         return nil
     })
 }
+
+// ConsumerJob implements the Job interface for the worker pool
+type ConsumerJob struct {
+    message Message
+    handler func(Message)
+    ack     func()
+}
+
+func (j *ConsumerJob) Process(ctx context.Context) error {
+    j.handler(j.message)
+    j.ack()
+    return nil
+}
+
