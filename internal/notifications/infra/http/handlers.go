@@ -17,19 +17,22 @@ import (
 	"getnoti.com/pkg/cache"
 	"getnoti.com/pkg/db"
 	"getnoti.com/pkg/queue"
+	"getnoti.com/pkg/workerpool"
 )
 
 type Handlers struct {
-	DBManager    *db.Manager
-	GenericCache *cache.GenericCache
-	queueManager *queue.QueueManager
+	DBManager         *db.Manager
+	GenericCache      *cache.GenericCache
+	queueManager      *queue.QueueManager
+	workerPoolManager *workerpool.WorkerPoolManager
 }
 
-func NewHandlers(dbManager *db.Manager, genericCache *cache.GenericCache, queueManager *queue.QueueManager) *Handlers {
+func NewHandlers(dbManager *db.Manager, genericCache *cache.GenericCache, queueManager *queue.QueueManager, wpm *workerpool.WorkerPoolManager) *Handlers {
 	return &Handlers{
-		DBManager:    dbManager,
-		GenericCache: genericCache,
-		queueManager: queueManager,
+		DBManager:         dbManager,
+		GenericCache:      genericCache,
+		queueManager:      queueManager,
+		workerPoolManager: wpm,
 	}
 }
 
@@ -52,7 +55,7 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	// Initialize services
 	tenantService := tenants.NewTenantService(tenantRepo)
 	providerFactory := providers.NewProviderFactory(h.GenericCache)
-	providerService := providerService.NewProviderService(providerFactory, notificationQueue)
+	providerService := providerService.NewProviderService(providerFactory, notificationQueue, h.workerPoolManager)
 	templateService := templates.NewTemplateService(templatesRepo)
 	// Initialize use case
 	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(tenantService, providerService, templateService, notificationRepo, h.GenericCache)

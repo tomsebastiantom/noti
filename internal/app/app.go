@@ -11,16 +11,18 @@ import (
 	"getnoti.com/pkg/logger"
 	"getnoti.com/pkg/queue"
 	"getnoti.com/pkg/vault"
+	"getnoti.com/pkg/workerpool"
 )
 
 type App struct {
-	config *config.Config
-	logger *logger.Logger
-	db     *db.Manager
-	mainDB db.Database
-	cache  *cache.GenericCache
-	server *server.Server
-	queueManager *queue.QueueManager
+	config            *config.Config
+	logger            *logger.Logger
+	db                *db.Manager
+	mainDB            db.Database
+	cache             *cache.GenericCache
+	server            *server.Server
+	queueManager      *queue.QueueManager
+	workerPoolManager *workerpool.WorkerPoolManager
 }
 
 func New(cfg *config.Config) (*App, error) {
@@ -52,18 +54,18 @@ func (a *App) initialize() error {
 
 	// Initialize main database
 	a.mainDB, err = db.NewDatabaseFactory((*db.DatabaseConfig)(&a.config.Database))
-    
+
 	if err != nil {
 		return fmt.Errorf("failed to initialize main database: %w", err)
 	}
 
 	// Initialize main queueManager
-	a.queueManager= queue.NewQueueManager(queue.Config(a.config.Queue), a.logger)
-
-	
+	a.queueManager = queue.NewQueueManager(queue.Config(a.config.Queue), a.logger)
+    //Initialize WorkerPoolManager
+	a.workerPoolManager = workerpool.NewWorkerPoolManager(*a.logger)
 
 	//Initialize router
-	r := router.New(a.mainDB, a.db, (*vault.VaultConfig)(&a.config.Vault), a.cache, a.queueManager)
+	r := router.New(a.mainDB, a.db, (*vault.VaultConfig)(&a.config.Vault), a.cache, a.queueManager, a.workerPoolManager)
 
 	//Initialize server
 	a.server = server.New(a.config, r.Handler())

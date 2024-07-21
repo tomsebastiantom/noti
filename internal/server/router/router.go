@@ -13,6 +13,7 @@ import (
 	"getnoti.com/pkg/queue"
 	"getnoti.com/pkg/vault"
 	"github.com/go-chi/chi/v5"
+	"getnoti.com/pkg/workerpool"
 )
 
 type Router struct {
@@ -21,14 +22,16 @@ type Router struct {
 	vaultCfg     *vault.VaultConfig
 	genericCache *cache.GenericCache
 	queueManager *queue.QueueManager
+	workerPoolManager *workerpool.WorkerPoolManager
 }
 
-func New(mainDB db.Database, dbManager *db.Manager, vaultCfg *vault.VaultConfig, genericCache *cache.GenericCache, queueManager *queue.QueueManager) *Router {
+func New(mainDB db.Database, dbManager *db.Manager, vaultCfg *vault.VaultConfig, genericCache *cache.GenericCache, queueManager *queue.QueueManager,workerPoolManager *workerpool.WorkerPoolManager) *Router {
 	return &Router{dbManager: dbManager,
 		mainDB:       mainDB,
 		vaultCfg:     vaultCfg,
 		genericCache: genericCache,
 		queueManager:        queueManager,
+		workerPoolManager :workerPoolManager,
 	}
 }
 
@@ -48,7 +51,7 @@ func (r *Router) Handler() *chi.Mux {
 func (r *Router) mountV1Routes(router chi.Router) {
 	v1Router := chi.NewRouter()
 
-	v1Router.Mount("/notifications", notificationroutes.NewRouter(r.dbManager, r.genericCache, r.queueManager))
+	v1Router.Mount("/notifications", notificationroutes.NewRouter(r.dbManager, r.genericCache, r.queueManager,r.workerPoolManager))
 	v1Router.Mount("/tenants", tenantroutes.NewRouter(r.mainDB, r.dbManager, r.vaultCfg))
 	v1Router.Mount("/users", userroutes.NewRouter(r.dbManager))
 	v1Router.Mount("/templates", templateroutes.NewRouter(r.dbManager))
