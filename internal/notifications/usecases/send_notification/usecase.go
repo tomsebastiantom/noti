@@ -12,7 +12,6 @@ import (
 	"getnoti.com/internal/templates/services"
 	"getnoti.com/internal/tenants/services"
 	"getnoti.com/pkg/cache"
-	"getnoti.com/pkg/queue"
 )
 
 type SendNotificationUseCase struct {
@@ -21,17 +20,15 @@ type SendNotificationUseCase struct {
 	templateService        *templates.TemplateService
 	notificationRepository repository.NotificationRepository
 	preferencesCache       *cache.GenericCache
-	notificationQueue           *queue.Queue
 }
 
-func NewSendNotificationUseCase(tenantService *tenants.TenantService, providerService *providers.ProviderService, templateService *templates.TemplateService, notificationRepository repository.NotificationRepository, preferencesCache *cache.GenericCache, queue *queue.Queue) *SendNotificationUseCase {
+func NewSendNotificationUseCase(tenantService *tenants.TenantService, providerService *providers.ProviderService, templateService *templates.TemplateService, notificationRepository repository.NotificationRepository, preferencesCache *cache.GenericCache) *SendNotificationUseCase {
 	return &SendNotificationUseCase{
 		tenantService:          tenantService,
 		providerService:        providerService,
 		templateService:        templateService,
 		notificationRepository: notificationRepository,
 		preferencesCache:       preferencesCache,
-		notificationQueue:           queue,
 	}
 }
 
@@ -69,15 +66,6 @@ func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificat
 		ProviderID: providerID,
 	}
 
-	// Enqueue the notification for processing
-	// err = u.notificationQueue.Enqueue(ctx, sendReq)
-	// if err != nil {
-	//     return SendNotificationResponse{
-	//         ID:     notification.ID,
-	//         Status: "failed",
-	//         Error:  "failed to enqueue notification: " + err.Error(),
-	//     }
-	// }
 	sendResp := u.providerService.SendNotification(ctx, req.TenantID, providerID, sendReq)
 	if !sendResp.Success {
 		return SendNotificationResponse{

@@ -2,6 +2,7 @@ package router
 
 import (
 	"getnoti.com/internal/notifications/infra/http"
+	providerroutes "getnoti.com/internal/providers/infra/http"
 	"getnoti.com/internal/server/middleware"
 
 	"getnoti.com/internal/templates/infra/http"
@@ -51,6 +52,7 @@ func (r *Router) mountV1Routes(router chi.Router) {
 	v1Router.Mount("/tenants", tenantroutes.NewRouter(r.mainDB, r.dbManager, r.vaultCfg))
 	v1Router.Mount("/users", userroutes.NewRouter(r.dbManager))
 	v1Router.Mount("/templates", templateroutes.NewRouter(r.dbManager))
+	v1Router.Mount("/providers",providerroutes.NewRouter(r.dbManager))
 
 	router.Mount("/v1", v1Router)
 }

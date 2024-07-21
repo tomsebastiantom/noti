@@ -52,6 +52,7 @@ func (a *App) initialize() error {
 
 	// Initialize main database
 	a.mainDB, err = db.NewDatabaseFactory((*db.DatabaseConfig)(&a.config.Database))
+    
 	if err != nil {
 		return fmt.Errorf("failed to initialize main database: %w", err)
 	}

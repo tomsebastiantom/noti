@@ -52,10 +52,10 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	// Initialize services
 	tenantService := tenants.NewTenantService(tenantRepo)
 	providerFactory := providers.NewProviderFactory(h.GenericCache)
-	providerService := providerService.NewProviderService(providerFactory)
+	providerService := providerService.NewProviderService(providerFactory, notificationQueue)
 	templateService := templates.NewTemplateService(templatesRepo)
 	// Initialize use case
-	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(tenantService, providerService, templateService, notificationRepo, h.GenericCache, &notificationQueue)
+	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(tenantService, providerService, templateService, notificationRepo, h.GenericCache)
 
 	// Initialize controller
 	sendNotificationController := sendnotification.NewSendNotificationController(sendNotificationUseCase)

@@ -15,9 +15,11 @@ type Message struct {
 }
 
 type Queue interface {
+	GetOrCreateChannel(channelName string) (*amqp.Channel, error)
 	Publish(ctx context.Context, channelName, routingKey string, msg Message) error
 	Consume(ctx context.Context, channelName, queueName string) (<-chan Message, error)
 	DeclareQueue(ctx context.Context, channelName, queueName string, durable, autoDelete, exclusive bool) error
+	InitializeConsumer(ctx context.Context, channelName, queueName string, handler func(Message)) error
 	Close() error
 }
 
@@ -51,10 +53,19 @@ func NewQueueManager(config Config, log logger.Interface) *QueueManager {
 }
 
 func (qm *QueueManager) GetOrCreateQueue(name string) (Queue, error) {
+	qm.mu.RLock()
+	q, exists := qm.queues[name]
+	qm.mu.RUnlock()
+
+	if exists {
+		return q, nil
+	}
+
 	qm.mu.Lock()
 	defer qm.mu.Unlock()
 
-	if q, exists := qm.queues[name]; exists {
+	// Double-check locking
+	if q, exists = qm.queues[name]; exists {
 		return q, nil
 	}
 
@@ -78,7 +89,7 @@ func NewAMQPQueue(config Config, log logger.Interface) (*AMQPQueue, error) {
 		channels:       make(map[string]*amqp.Channel),
 		config:         config,
 		log:            log,
-		circuitBreaker: circuitbreaker.NewCircuitBreaker(5, 3, 60), // 5 failures, 3 successes, 60 second timeout
+		circuitBreaker: circuitbreaker.NewCircuitBreaker(5, 3, 60),
 	}
 
 	go q.reconnectLoop()
@@ -86,17 +97,21 @@ func NewAMQPQueue(config Config, log logger.Interface) (*AMQPQueue, error) {
 	return q, nil
 }
 
-func (q *AMQPQueue) getOrCreateChannel(name string) (*amqp.Channel, error) {
+func (q *AMQPQueue) GetOrCreateChannel(channelName string) (*amqp.Channel, error) {
+	q.mu.RLock()
+	ch, exists := q.channels[channelName]
+	q.mu.RUnlock()
+
+	if exists {
+		return ch, nil
+	}
+
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	ch, exists := q.channels[name]
-	if exists {
-		// Attempt a harmless operation to check channel health
-		if err := ch.Qos(0, 0, false); err == nil {
-			return ch, nil
-		}
-		// If error, channel might be closed, so we'll create a new one
+	// Double-check locking
+	if ch, exists = q.channels[channelName]; exists {
+		return ch, nil
 	}
 
 	newCh, err := q.conn.Channel()
@@ -104,13 +119,13 @@ func (q *AMQPQueue) getOrCreateChannel(name string) (*amqp.Channel, error) {
 		return nil, err
 	}
 
-	q.channels[name] = newCh
+	q.channels[channelName] = newCh
 	return newCh, nil
 }
 
 func (q *AMQPQueue) Publish(ctx context.Context, channelName, routingKey string, msg Message) error {
 	return q.circuitBreaker.Execute(func() error {
-		ch, err := q.getOrCreateChannel(channelName)
+		ch, err := q.GetOrCreateChannel(channelName)
 		if err != nil {
 			return err
 		}
@@ -130,7 +145,7 @@ func (q *AMQPQueue) Publish(ctx context.Context, channelName, routingKey string,
 func (q *AMQPQueue) Consume(ctx context.Context, channelName, queueName string) (<-chan Message, error) {
 	var messages <-chan Message
 	err := q.circuitBreaker.Execute(func() error {
-		ch, err := q.getOrCreateChannel(channelName)
+		ch, err := q.GetOrCreateChannel(channelName)
 		if err != nil {
 			return err
 		}
@@ -167,7 +182,7 @@ func (q *AMQPQueue) Consume(ctx context.Context, channelName, queueName string) 
 
 func (q *AMQPQueue) DeclareQueue(ctx context.Context, channelName, queueName string, durable, autoDelete, exclusive bool) error {
 	return q.circuitBreaker.Execute(func() error {
-		ch, err := q.getOrCreateChannel(channelName)
+		ch, err := q.GetOrCreateChannel(channelName)
 		if err != nil {
 			return err
 		}
@@ -182,19 +197,6 @@ func (q *AMQPQueue) DeclareQueue(ctx context.Context, channelName, queueName str
 		)
 		return err
 	})
-}
-
-func (q *AMQPQueue) Close() error {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
-	for _, ch := range q.channels {
-		if err := ch.Close(); err != nil {
-			q.log.Error("Failed to close channel: %s", err)
-		}
-	}
-
-	return q.conn.Close()
 }
 
 func (q *AMQPQueue) reconnectLoop() {
@@ -231,4 +233,56 @@ func (q *AMQPQueue) connect() error {
 	q.channels = make(map[string]*amqp.Channel)
 
 	return nil
+}
+func (q *AMQPQueue) Close() error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	for _, ch := range q.channels {
+		if err := ch.Close(); err != nil {
+			q.log.Error("Failed to close channel: %s", err)
+		}
+	}
+
+	return q.conn.Close()
+}
+
+func (q *AMQPQueue) InitializeConsumer(ctx context.Context, channelName, queueName string, handler func(Message)) error {
+    return q.circuitBreaker.Execute(func() error {
+        ch, err := q.GetOrCreateChannel(channelName)
+        if err != nil {
+            return err
+        }
+
+        msgs, err := ch.Consume(
+            queueName, // queue
+            "",        // consumer
+            true,      // auto-ack
+            false,     // exclusive
+            false,     // no-local
+            false,     // no-wait
+            nil,       // args
+        )
+        if err != nil {
+            return err
+        }
+
+        go func() {
+            for {
+                select {
+                case msg, ok := <-msgs:
+                    if !ok {
+                        q.log.Warn("Channel closed for queue: %s", queueName)
+                        return
+                    }
+                    handler(Message{Body: msg.Body})
+                case <-ctx.Done():
+                    q.log.Info("Context cancelled for consumer on queue: %s", queueName)
+                    return
+                }
+            }
+        }()
+
+        return nil
+    })
 }
