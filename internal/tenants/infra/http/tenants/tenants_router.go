@@ -12,7 +12,6 @@ import (
 	"getnoti.com/internal/tenants/usecases/get_tenants"
 	"getnoti.com/internal/tenants/usecases/update_tenant"
 	"getnoti.com/pkg/db"
-	"getnoti.com/pkg/vault"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -20,15 +19,15 @@ import (
 type Handlers struct {
 	DBManager *db.Manager
 	MainDB    db.Database
-	Vault     *vault.VaultConfig
+
 }
 
 // NewHandlers initializes the Handlers struct with the DBManager, MainDB, and Vault
-func NewHandlers(mainDB db.Database, dbManager *db.Manager, vault *vault.VaultConfig) *Handlers {
+func NewHandlers(mainDB db.Database, dbManager *db.Manager) *Handlers {
 	return &Handlers{
 		DBManager: dbManager,
 		MainDB:    mainDB,
-		Vault:     vault,
+		
 	}
 }
 
@@ -43,7 +42,7 @@ func (h *Handlers) getTenantRepo(r *http.Request) (repository.TenantRepository, 
 	}
 
 	// Initialize repository
-	tenantRepo := repos.NewTenantRepository(h.MainDB, database, h.Vault)
+	tenantRepo := repos.NewTenantRepository(h.MainDB, database)
 	return tenantRepo, nil
 }
 
@@ -116,8 +115,8 @@ func (h *Handlers) GetTenants(w http.ResponseWriter, r *http.Request) {
 }
 
 // NewRouter sets up the router with all routes
-func NewRouter(mainDB db.Database, dbManager *db.Manager, vault *vault.VaultConfig) *chi.Mux {
-	h := NewHandlers(mainDB, dbManager, vault)
+func NewRouter(mainDB db.Database, dbManager *db.Manager) *chi.Mux {
+	h := NewHandlers(mainDB, dbManager)
 	r := chi.NewRouter()
 
 	// Set up routes

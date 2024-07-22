@@ -5,21 +5,21 @@ import (
 
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"getnoti.com/internal/tenants/domain"
-	"getnoti.com/internal/tenants/repos"
+	repository "getnoti.com/internal/tenants/repos"
 	"getnoti.com/pkg/db"
 	"getnoti.com/pkg/vault"
-	"time"
 )
 
 type sqlTenantRepository struct {
 	mainDB   db.Database
 	tenantDB db.Database
-	vault    *vault.VaultConfig
 }
 
-func NewTenantRepository(mainDB, tenantDB db.Database, vaultConfig *vault.VaultConfig) repository.TenantRepository {
-	return &sqlTenantRepository{mainDB: mainDB, tenantDB: tenantDB, vault: vaultConfig}
+func NewTenantRepository(mainDB, tenantDB db.Database) repository.TenantRepository {
+	return &sqlTenantRepository{mainDB: mainDB, tenantDB: tenantDB}
 }
 
 func (r *sqlTenantRepository) CreateTenant(ctx context.Context, tenant domain.Tenant) error {
@@ -49,8 +49,8 @@ func (r *sqlTenantRepository) CreateTenant(ctx context.Context, tenant domain.Te
 	}
 
 	// Store DB credentials in Vault
-	if tenant.DBConfig != nil {
-		err = r.storeDBCredentialsInVault(tenant.ID, tenant.DBConfig)
+	if len(tenant.DBConfigs) > 0 {
+		err = r.storeDBCredentialsInVault(tenant.ID, tenant.DBConfigs)
 		if err != nil {
 			return fmt.Errorf("failed to store DB credentials in Vault: %w", err)
 		}
@@ -84,40 +84,41 @@ func (r *sqlTenantRepository) GetTenantByID(ctx context.Context, tenantID string
 }
 
 func (r *sqlTenantRepository) Update(ctx context.Context, tenant domain.Tenant) error {
-	now := time.Now()
-	preferences, err := json.Marshal(tenant.Preferences)
-	if err != nil {
-		return fmt.Errorf("failed to marshal preferences: %w", err)
-	}
+    now := time.Now()
+    preferences, err := json.Marshal(tenant.Preferences)
+    if err != nil {
+        return fmt.Errorf("failed to marshal preferences: %w", err)
+    }
 
-	tx, err := r.mainDB.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
+    tx, err := r.mainDB.BeginTx(ctx, nil)
+    if err != nil {
+        return fmt.Errorf("failed to begin transaction: %w", err)
+    }
+    defer tx.Rollback()
 
-	metadataQuery := `UPDATE tenant_metadata SET name = ?, updated_at = ? WHERE id = ?`
-	_, err = tx.Exec(ctx, metadataQuery, tenant.Name, now, tenant.ID)
-	if err != nil {
-		return fmt.Errorf("failed to update tenant metadata: %w", err)
-	}
+    metadataQuery := `UPDATE tenant_metadata SET name = ?, updated_at = ? WHERE id = ?`
+    _, err = tx.Exec(ctx, metadataQuery, tenant.Name, now, tenant.ID)
+    if err != nil {
+        return fmt.Errorf("failed to update tenant metadata: %w", err)
+    }
 
-	tenantQuery := `UPDATE tenants SET name = ?, preferences = ?, updated_at = ? WHERE id = ?`
-	_, err = r.tenantDB.Exec(ctx, tenantQuery, tenant.Name, preferences, now, tenant.ID)
-	if err != nil {
-		return fmt.Errorf("failed to update tenant data: %w", err)
-	}
+    tenantQuery := `UPDATE tenants SET name = ?, preferences = ?, updated_at = ? WHERE id = ?`
+    _, err = r.tenantDB.Exec(ctx, tenantQuery, tenant.Name, preferences, now, tenant.ID)
+    if err != nil {
+        return fmt.Errorf("failed to update tenant data: %w", err)
+    }
 
-	// Update DB credentials in Vault
-	if tenant.DBConfig != nil {
-		err = r.storeDBCredentialsInVault(tenant.ID, tenant.DBConfig)
-		if err != nil {
-			return fmt.Errorf("failed to update DB credentials in Vault: %w", err)
-		}
-	}
+    // Update DB credentials in Vault
+    if len(tenant.DBConfigs) > 0 {
+        err = r.updateDBCredentialsInVault(tenant.ID, tenant.DBConfigs)
+        if err != nil {
+            return fmt.Errorf("failed to update DB credentials in Vault: %w", err)
+        }
+    }
 
-	return tx.Commit()
+    return tx.Commit()
 }
+
 
 func (r *sqlTenantRepository) GetAllTenants(ctx context.Context) ([]domain.Tenant, error) {
 	query := `SELECT id, name FROM tenant_metadata`
@@ -162,24 +163,87 @@ func (r *sqlTenantRepository) GetPreferenceByChannel(ctx context.Context, tenant
 	return channelPref, nil
 }
 
-func (r *sqlTenantRepository) storeDBCredentialsInVault(tenantID string, dbConfig *domain.DBConfig) error {
-	client, err := vault.InitializeVaultClient(r.vault)
+func (r *sqlTenantRepository) storeDBCredentialsInVault(tenantID string, dbConfigs map[string]*domain.DBConfig) error {
+	err := vault.RefreshToken(tenantID)
 	if err != nil {
-		return fmt.Errorf("failed to initialize Vault client: %w", err)
+		return fmt.Errorf("failed to refresh Vault token: %w", err)
 	}
 
-	secretPath := fmt.Sprintf("secret/data/tenants/%s/credentials", tenantID)
-	data := map[string]interface{}{
-		"db_config": dbConfig,
-	}
+	for dbName, dbConfig := range dbConfigs {
+		data := map[string]interface{}{
+			"create_new_db": dbConfig.CreateNewDB,
+		}
 
-	_, err = client.Logical().Write(secretPath, data)
-	if err != nil {
-		return fmt.Errorf("failed to store DB credentials in Vault: %w", err)
+		if dbConfig.Credentials != nil {
+			data["type"] = dbConfig.Credentials.Type
+			data["host"] = dbConfig.Credentials.Host
+			data["port"] = dbConfig.Credentials.Port
+			data["username"] = dbConfig.Credentials.Username
+			data["password"] = dbConfig.Credentials.Password
+			data["dbname"] = dbConfig.Credentials.DBName
+			data["dsn"] = dbConfig.Credentials.DSN
+		}
+
+		err = vault.CreateCredential(tenantID, vault.DBCredential, dbName, data)
+		if err != nil {
+			return fmt.Errorf("failed to store DB credentials in Vault for database %s: %w", dbName, err)
+		}
 	}
 
 	return nil
 }
+func (r *sqlTenantRepository) updateDBCredentialsInVault(tenantID string, dbConfigs map[string]*domain.DBConfig) error {
+    err := vault.RefreshToken(tenantID)
+    if err != nil {
+        return fmt.Errorf("failed to refresh Vault token: %w", err)
+    }
+
+    // Get existing credentials
+    existingCredentials, err := vault.GetClientCredentials(tenantID, vault.DBCredential, "")
+    if err != nil {
+        return fmt.Errorf("failed to get existing DB credentials from Vault: %w", err)
+    }
+
+    for dbName, dbConfig := range dbConfigs {
+        data := map[string]interface{}{
+            "create_new_db": dbConfig.CreateNewDB,
+        }
+
+        if dbConfig.Credentials != nil {
+            data["type"] = dbConfig.Credentials.Type
+            data["host"] = dbConfig.Credentials.Host
+            data["port"] = dbConfig.Credentials.Port
+            data["username"] = dbConfig.Credentials.Username
+            data["password"] = dbConfig.Credentials.Password
+            data["dbname"] = dbConfig.Credentials.DBName
+            data["dsn"] = dbConfig.Credentials.DSN
+        }
+
+        // Check if the database config already exists
+        if _, exists := existingCredentials[dbName]; exists {
+            err = vault.UpdateCredential(tenantID, vault.DBCredential, dbName, data)
+        } else {
+            err = vault.CreateCredential(tenantID, vault.DBCredential, dbName, data)
+        }
+
+        if err != nil {
+            return fmt.Errorf("failed to update/create DB credentials in Vault for database %s: %w", dbName, err)
+        }
+    }
+
+    // Remove any database configs that are no longer present
+    for existingDbName := range existingCredentials {
+        if _, exists := dbConfigs[existingDbName]; !exists {
+            err = vault.UpdateCredential(tenantID, vault.DBCredential, existingDbName, nil)
+            if err != nil {
+                return fmt.Errorf("failed to delete DB credentials from Vault for database %s: %w", existingDbName, err)
+            }
+        }
+    }
+
+    return nil
+}
+
 
 // func (r *sqlTenantRepository) getDBCredentialsFromVault(tenantID string) (*domain.DBCredentials, error) {
 //     credentials, err := vault.GetClientCredentials(r.vault, tenantID)

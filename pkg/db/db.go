@@ -87,8 +87,41 @@ func (tx *SQLTransaction) QueryRow(ctx context.Context, query string, args ...in
 }
 
 // NewDatabaseFactory initializes a new database connection based on the provided configuration.
-func NewDatabaseFactory(cfg *DatabaseConfig) (Database, error) {
-    db, err := sql.Open(cfg.Type, cfg.DSN)
+func NewDatabaseFactory(credentials map[string]interface{}) (Database, error) {
+    var dbConfig map[string]string
+
+    if dsn, ok := credentials["dsn"].(string); ok {
+        dbConfig = map[string]string{
+            "type": credentials["type"].(string),
+            "dsn":  dsn,
+        }
+    } else {
+        dbConfig = map[string]string{
+            "type":     credentials["type"].(string),
+            "host":     credentials["host"].(string),
+            "port":     credentials["port"].(string),
+            "username": credentials["username"].(string),
+            "password": credentials["password"].(string),
+            "database": credentials["database"].(string),
+        }
+    }
+
+    return createDatabaseConnection(dbConfig)
+}
+
+func createDatabaseConnection(dbConfig map[string]string) (Database, error) {
+    dbType, ok := dbConfig["type"]
+    if !ok {
+        return nil, fmt.Errorf("database type is required")
+    }
+
+    var dsn string
+    if dsn, ok = dbConfig["dsn"]; !ok {
+        // Build DSN from individual fields
+        dsn = buildDSN(dbConfig)
+    }
+
+    db, err := sql.Open(dbType, dsn)
     if err != nil {
         return nil, fmt.Errorf("failed to open database: %v", err)
     }
@@ -100,16 +133,25 @@ func NewDatabaseFactory(cfg *DatabaseConfig) (Database, error) {
     return &SQLDatabase{db}, nil
 }
 
-// DatabaseConfig holds the configuration for the database connection.
-type DatabaseConfig struct {
-    Type string
-    DSN  string
+func buildDSN(config map[string]string) string {
+    switch config["type"] {
+    case "mysql":
+        return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", 
+            config["username"], config["password"], config["host"], config["port"], config["database"])
+    case "postgres":
+        return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", 
+            config["host"], config["port"], config["username"], config["password"], config["database"])
+    default:
+        return fmt.Sprintf("%s:%s@%s:%s/%s", 
+            config["username"], config["password"], config["host"], config["port"], config["database"])
+    }
 }
+
+
 
 // Manager manages database connections and caches them.
 type Manager struct {
     cache       *cache.GenericCache
-    vaultConfig *vault.VaultConfig
     mutex       sync.Mutex
 }
 
@@ -117,41 +159,48 @@ type Manager struct {
 func NewManager(cache *cache.GenericCache, vaultConfig *vault.VaultConfig) *Manager {
     return &Manager{
         cache:       cache,
-        vaultConfig: vaultConfig,
     }
 }
 
 // GetDatabaseConnection retrieves a database connection for the given tenant ID.
 func (m *Manager) GetDatabaseConnection(tenantID string) (Database, error) {
-    // Check if the database connection is cached
     dbConn, found := m.cache.Get(tenantID)
     if !found {
         m.mutex.Lock()
         defer m.mutex.Unlock()
 
-        // Double-check if the database connection is still not cached
         dbConn, found = m.cache.Get(tenantID)
         if !found {
-            // Retrieve database credentials from Vault
-            credentials, err := vault.GetClientCredentials(m.vaultConfig, tenantID)
+            credentials, err := vault.GetClientCredentials(tenantID, vault.DBCredential, "")
             if err != nil {
-                return nil, fmt.Errorf("failed to retrieve database credentials: %v", err)
+                return nil, fmt.Errorf("failed to get database credentials: %v", err)
             }
 
-            // Create a new database connection
-            dbConfig := &DatabaseConfig{
-                Type: credentials["type"].(string),
-                DSN:  credentials["dsn"].(string),
+            dbConfig := make(map[string]interface{})
+
+            if dsn, ok := credentials["dsn"].(string); ok {
+                dbConfig["type"] = credentials["type"]
+                dbConfig["dsn"] = dsn
+            } else {
+                // Fallback to username/password if DSN is not provided
+                dbConfig["type"] = credentials["type"]
+                dbConfig["host"] = credentials["host"]
+                dbConfig["port"] = credentials["port"]
+                dbConfig["username"] = credentials["username"]
+                dbConfig["password"] = credentials["password"]
+                dbConfig["database"] = credentials["database"]
             }
+
             dbConn, err = NewDatabaseFactory(dbConfig)
             if err != nil {
                 return nil, fmt.Errorf("failed to create database connection: %v", err)
             }
 
-            // Cache the database connection
             m.cache.Set(tenantID, dbConn, 1)
         }
     }
 
     return dbConn.(Database), nil
 }
+
+

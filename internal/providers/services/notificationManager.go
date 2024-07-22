@@ -86,8 +86,8 @@ func (nm *NotificationManager) handleMessage(msg queue.Message) {
 		return
 	}
 
-	provider := nm.providerFactory.GetProvider(req.ProviderID, req.Sender, req.Channel)
-	if provider == nil {
+	provider, err := nm.providerFactory.GetProvider(req.ProviderID, req.Sender, req.Channel)
+	if provider == nil || err != nil {
 		fmt.Printf("Failed to get provider instance for provider %s\n", req.ProviderID)
 		return
 	}
@@ -104,8 +104,8 @@ type NotificationJob struct {
 }
 
 func (j *NotificationJob) Process(ctx context.Context) error {
-	provider := j.providerFactory.GetProvider(j.req.ProviderID, j.req.Sender, j.req.Channel)
-	if provider == nil {
+	provider, err := j.providerFactory.GetProvider(j.req.ProviderID, j.req.Sender, j.req.Channel)
+	if provider == nil || err != nil {
 		return fmt.Errorf("failed to get provider instance for provider %s", j.req.ProviderID)
 	}
 

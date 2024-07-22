@@ -13,6 +13,7 @@ import (
 	templatesrepo "getnoti.com/internal/templates/repos/implementations"
 	templates "getnoti.com/internal/templates/services"
 	tenantrepos "getnoti.com/internal/tenants/repos/implementations"
+	providerrepos "getnoti.com/internal/providers/repos/implementations"
 	tenants "getnoti.com/internal/tenants/services"
 	"getnoti.com/pkg/cache"
 	"getnoti.com/pkg/db"
@@ -48,13 +49,15 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	notificationQueue, err := h.queueManager.GetOrCreateQueue(tenantID)
 	// Initialize repositories
 	notificationRepo := repos.NewNotificationRepository(database)
-	// tenantRepo := repos.NewTenantRepository(database)
-	tenantRepo := tenantrepos.NewTenantPreferenceRepository(database)
+
+	tenantPreferenceRepo := tenantrepos.NewTenantPreferenceRepository(database)
 
 	templatesRepo := templatesrepo.NewTemplateRepository(database)
+
+	providerRepo:= providerrepos.NewProviderRepository(database)
 	// Initialize services
-	tenantService := tenants.NewTenantService(tenantRepo)
-	providerFactory := providers.NewProviderFactory(h.GenericCache)
+	tenantService := tenants.NewTenantService(tenantPreferenceRepo)
+	providerFactory := providers.NewProviderFactory(h.GenericCache,providerRepo)
 	providerService := providerService.NewProviderService(providerFactory, notificationQueue, h.workerPoolManager)
 	templateService := templates.NewTemplateService(templatesRepo)
 	// Initialize use case
