@@ -63,8 +63,8 @@ func (a *App) initialize() error {
  
 
  // Run database migrations
- if err := migrate.Migrate(a.config.Database.DSN); err != nil {
-	 return fmt.Errorf("failed to run database migrations: %w", err)
+ if err := migrate.Migrate(a.config.Database.DSN,a.config.Database.Type,true); err != nil {
+	 return fmt.Errorf("failed to run main Database migrations: %w", err)
  }
     // Initialize main queueManager
     a.queueManager = queue.NewQueueManager(queue.Config(a.config.Queue), a.logger)

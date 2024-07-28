@@ -1,88 +1,106 @@
 package migrate
 
 import (
-	"fmt"
-	"log"
-	"os"
-	"path/filepath"
-	"strings"
+    "database/sql"
+    "fmt"
+    "log"
+    "os"
+    "path/filepath"
 
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres" // or the database you're using
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+    "github.com/golang-migrate/migrate/v4"
+    "github.com/golang-migrate/migrate/v4/database"
+    "github.com/golang-migrate/migrate/v4/database/mysql"
+    "github.com/golang-migrate/migrate/v4/database/postgres"
+    "github.com/golang-migrate/migrate/v4/database/sqlite"
+    _ "github.com/golang-migrate/migrate/v4/source/file"
+    _ "github.com/go-sql-driver/mysql"
+    _ "github.com/lib/pq"
+    _ "modernc.org/sqlite"
 )
 
-func Migrate(dsn string) error {
-	// Get the current working directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		log.Printf("Failed to get current working directory: %v", err)
-		return err
-	}
+func Migrate(dsn string, dbType string, isMainDB bool) error {
+    // Get the current working directory
+    cwd, err := os.Getwd()
+    if err != nil {
+        log.Printf("Failed to get current working directory: %v", err)
+        return err
+    }
 
-	// Define the migration folder path relative to the current working directory
-	migrationFolder := filepath.Join(cwd, "migrations")
-	migrationFolder = filepath.ToSlash(migrationFolder) // Convert to URL-friendly format
-	fmt.Println("Applying migrations from folder:", migrationFolder)
+    // Move up one directory level if we're in the cmd folder
+    if filepath.Base(cwd) == "cmd" {
+        cwd = filepath.Dir(cwd)
+    }
 
-	// Check if the migration folder exists
-	if _, err := os.Stat(migrationFolder); os.IsNotExist(err) {
-		log.Printf("Migration folder does not exist: %v", migrationFolder)
-		return err
-	}
+    // Define the migration folder path based on whether it's the main DB or tenant DB
+    var migrationFolder string
+    if isMainDB {
+        migrationFolder = filepath.Join(cwd, "migrations", "main")
+    } else {
+        migrationFolder = filepath.Join(cwd, "migrations", "tenant")
+    }
+    migrationFolder = filepath.ToSlash(migrationFolder) // Convert to URL-friendly format
+    fmt.Printf("Applying %s database migrations from folder: %s\n", 
+               map[bool]string{true: "main", false: "tenant"}[isMainDB], 
+               migrationFolder)
 
-	// List all SQL files in the migration folder
-	err = filepath.Walk(migrationFolder, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".sql") {
-			fmt.Println("Found migration file:", path)
-		}
-		return nil
-	})
-	if err != nil {
-		log.Printf("Failed to list SQL files: %v", err)
-		return err
-	}
+    // Check if the migration folder exists
+    if _, err := os.Stat(migrationFolder); os.IsNotExist(err) {
+        log.Printf("Migration folder does not exist: %v", migrationFolder)
+        return err
+    }
 
-	// Update the DSN to disable SSL
-	dsn += "?sslmode=disable"
+    // Open the database
+    db, err := sql.Open(dbType, dsn)
+    if err != nil {
+        log.Printf("Failed to open database: %v", err)
+        return err
+    }
+    defer db.Close()
 
-	// Initialize the migrate instance
-	m, err := migrate.New(
-		"file://"+migrationFolder,
-		dsn,
-	)
-	if err != nil {
-		log.Printf("Failed to initialize migrate instance: %v", err)
-		return err
-	}
+    // Create a database-specific driver
+    var driver database.Driver
+    switch dbType {
+    case "postgres":
+        driver, err = postgres.WithInstance(db, &postgres.Config{})
+    case "mysql":
+        driver, err = mysql.WithInstance(db, &mysql.Config{})
+    case "sqlite":
+        driver, err = sqlite.WithInstance(db, &sqlite.Config{})
+    default:
+        return fmt.Errorf("unsupported database type: %s", dbType)
+    }
+    if err != nil {
+        log.Printf("Failed to create database driver: %v", err)
+        return err
+    }
 
-	// Get the current version and dirty state
-	version, dirty, err := m.Version()
-	if err != nil && err != migrate.ErrNilVersion {
-		log.Printf("Failed to get current migration version: %v", err)
-		return err
-	}
+    // Initialize the migrate instance
+    m, err := migrate.NewWithDatabaseInstance(
+        "file://"+migrationFolder,
+        dbType, driver)
+    if err != nil {
+        log.Printf("Failed to initialize migrate instance: %v", err)
+        return err
+    }
+    defer m.Close()
 
-	if dirty {
-		log.Printf("The migration is in a dirty state at version %d", version)
-		return fmt.Errorf("migration is in a dirty state at version %d", version)
-	}
+    // Apply the migrations
+    err = m.Up()
+    if err != nil && err != migrate.ErrNoChange {
+        log.Printf("Failed to apply migrations: %v", err)
+        return err
+    }
 
-	// Apply the migrations
-	err = m.Up()
-	if err != nil && err != migrate.ErrNoChange {
-		log.Printf("Failed to apply migrations: %v", err)
-		return err
-	}
+    if err == migrate.ErrNoChange {
+        fmt.Println("No new migrations to apply.")
+    } else {
+        fmt.Println("Migrations applied successfully.")
+    }
 
-	if err == migrate.ErrNoChange {
-		fmt.Println("No new migrations to apply.")
-	} else {
-		fmt.Println("Migrations applied successfully.")
-	}
-
-	return nil
+    return nil
 }
+
+// Currently supported databases:
+// - PostgreSQL ("postgres")
+// - MySQL ("mysql")
+// - SQLite ("sqlite")

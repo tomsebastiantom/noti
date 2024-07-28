@@ -9,7 +9,7 @@ logger:
   log_level: "debug"
 
 database:
-  type: "sqlite3" # or "postgres", "mysql", etc.
+  type: "sqlite" # or "postgres", "mysql", etc.
   dsn: "noti.db" # For SQLite, this will be the database file name
 
 queue:
