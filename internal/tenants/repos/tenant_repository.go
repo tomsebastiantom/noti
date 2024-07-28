@@ -16,3 +16,6 @@ type TenantRepository interface {
 type TenantPreferenceRepository interface {
 	GetPreferenceByChannel(ctx context.Context, tenantID string, channel string) (map[string]string, error)
 }
+type TenantsRepository interface {
+	GetAllTenants(ctx context.Context) ([]domain.Tenant, error)
+}

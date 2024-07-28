@@ -4,14 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-
+"log"
 "getnoti.com/internal/shared/middleware"
 	"getnoti.com/internal/tenants/repos"
 	"getnoti.com/internal/tenants/repos/implementations"
 	"getnoti.com/internal/tenants/usecases/create_tenant"
 	"getnoti.com/internal/tenants/usecases/get_tenants"
+	"getnoti.com/internal/tenants/usecases/get_tenant"
 	"getnoti.com/internal/tenants/usecases/update_tenant"
 	"getnoti.com/pkg/db"
+	tenantMiddleware "getnoti.com/internal/shared/middleware"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -88,30 +90,26 @@ func (h *Handlers) GetTenant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Initialize use case
-	getTenantsUseCase := gettenants.NewGetTenantsUseCase(tenantRepo)
+	getTenantUseCase := gettenant.NewGetTenantUseCase(tenantRepo)
 
 	// Initialize controller
-	getTenantController := gettenants.NewGetTenantsController(getTenantsUseCase)
+	getTenantController := gettenant.NewGetTenantController(getTenantUseCase)
 
 	// Handle the request
-	commonHandler(getTenantController.GetTenants)(w, r)
+	commonHandler(getTenantController.GetTenant)(w, r)
 }
 
 func (h *Handlers) GetTenants(w http.ResponseWriter, r *http.Request) {
-	tenantRepo, err := h.getTenantRepo(r)
-	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
-		return
-	}
+	tenantRepo := repos.NewTenantsRepository(h.MainDB)
 
 	// Initialize use case
 	getTenantsUseCase := gettenants.NewGetTenantsUseCase(tenantRepo)
 
 	// Initialize controller
-	getTenantController := gettenants.NewGetTenantsController(getTenantsUseCase)
-
+	getTenantsController := gettenants.NewGetTenantsController(getTenantsUseCase)
+	log.Printf("GetTenants handler type: %T", getTenantsController.GetTenants)
 	// Handle the request
-	commonHandler(getTenantController.GetTenants)(w, r)
+	commonHandler(getTenantsController.GetTenants)(w, r)
 }
 
 // NewRouter sets up the router with all routes
@@ -121,8 +119,8 @@ func NewRouter(mainDB db.Database, dbManager *db.Manager) *chi.Mux {
 
 	// Set up routes
 	r.Post("/", h.CreateTenant)
-	r.Put("/{id}", h.UpdateTenant)
-	r.Get("/{id}", h.GetTenant)
+	r.Put("/",h.UpdateTenant)
+	r.With(tenantMiddleware.WithTenantID).Get("/me", h.GetTenant)
 	r.Get("/", h.GetTenants)
 
 	return r
@@ -143,16 +141,33 @@ func commonHandler(handlerFunc interface{}) http.HandlerFunc {
 		}
 
 		// Call the handler function with the context and request
+		// Call the handler function with the context and request
 		var res interface{}
+		var err error
+
 		switch h := handlerFunc.(type) {
-		case func(context.Context, createtenant.CreateTenantRequest) createtenant.CreateTenantResponse:
-			res = h(ctx, req.(createtenant.CreateTenantRequest))
-		case func(context.Context, updatetenant.UpdateTenantRequest) updatetenant.UpdateTenantResponse:
-			res = h(ctx, req.(updatetenant.UpdateTenantRequest))
-		case func(context.Context, gettenants.GetTenantsRequest) gettenants.GetTenantsResponse:
-			res = h(ctx, req.(gettenants.GetTenantsRequest))
+		case func(context.Context, createtenant.CreateTenantRequest) (createtenant.CreateTenantResponse, error):
+			log.Println("Triggered: CreateTenant handler")
+			res, err = h(ctx, req.(createtenant.CreateTenantRequest))
+		case func(context.Context, updatetenant.UpdateTenantRequest) (updatetenant.UpdateTenantResponse, error):
+			log.Println("Triggered: UpdateTenant handler")
+			res, err = h(ctx, req.(updatetenant.UpdateTenantRequest))
+		case func(context.Context, gettenants.GetTenantsRequest) (gettenants.GetTenantsResponse, error):
+			log.Println("Triggered: GetTenants handler")
+			res, err = h(ctx, gettenants.GetTenantsRequest{})
+			log.Println("GetTenants function returned")
+		case func(context.Context, gettenant.GetTenantRequest) (gettenant.GetTenantResponse, error):
+			log.Println("Triggered: GetTenant handler")
+			res, err = h(ctx, req.(gettenant.GetTenantRequest))
 		default:
+			log.Printf("Unsupported handler function type: %T", handlerFunc)
 			http.Error(w, "Unsupported handler function", http.StatusInternalServerError)
+			return
+		}
+
+		if err != nil {
+			log.Printf("Error executing handler: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 

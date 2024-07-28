@@ -4,7 +4,7 @@ import (
 	"getnoti.com/internal/notifications/infra/http"
 	providerroutes "getnoti.com/internal/providers/infra/http"
 	"getnoti.com/internal/server/middleware"
-
+tenantMiddleware "getnoti.com/internal/shared/middleware"
 	"getnoti.com/internal/templates/infra/http"
 	"getnoti.com/internal/tenants/infra/http/tenants"
 	"getnoti.com/internal/tenants/infra/http/users"
@@ -48,11 +48,11 @@ func (r *Router) Handler() *chi.Mux {
 func (r *Router) mountV1Routes(router chi.Router) {
 	v1Router := chi.NewRouter()
 
-	v1Router.Mount("/notifications", notificationroutes.NewRouter(r.dbManager, r.genericCache, r.queueManager, r.workerPoolManager))
+	v1Router.With(tenantMiddleware.WithTenantID).Mount("/notifications", notificationroutes.NewRouter(r.dbManager, r.genericCache, r.queueManager, r.workerPoolManager))
 	v1Router.Mount("/tenants", tenantroutes.NewRouter(r.mainDB, r.dbManager))
-	v1Router.Mount("/users", userroutes.NewRouter(r.dbManager))
-	v1Router.Mount("/templates", templateroutes.NewRouter(r.dbManager))
-	v1Router.Mount("/providers", providerroutes.NewRouter(r.dbManager))
+	v1Router.With(tenantMiddleware.WithTenantID).Mount("/users", userroutes.NewRouter(r.dbManager))
+	v1Router.With(tenantMiddleware.WithTenantID).Mount("/templates", templateroutes.NewRouter(r.dbManager))
+	v1Router.With(tenantMiddleware.WithTenantID).Mount("/providers", providerroutes.NewRouter(r.dbManager))
 
 	router.Mount("/v1", v1Router)
 }

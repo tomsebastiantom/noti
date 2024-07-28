@@ -297,3 +297,32 @@ func (r *sqlTenantPreferenceRepository) GetPreferenceByChannel(ctx context.Conte
 
 	return channelPref, nil
 }
+
+
+type sqlTenantsRepository struct {
+	mainDB db.Database
+}
+
+func NewTenantsRepository(mainDB db.Database) repository.TenantsRepository {
+	return &sqlTenantsRepository{mainDB: mainDB}
+}
+func (r *sqlTenantsRepository) GetAllTenants(ctx context.Context) ([]domain.Tenant, error) {
+    query := `SELECT id, name FROM tenant_metadata`
+    rows, err := r.mainDB.Query(ctx, query)
+    if err != nil {
+        return nil, fmt.Errorf("failed to query tenant metadata: %w", err)
+    }
+    defer rows.Close()
+
+    var tenants []domain.Tenant
+    for rows.Next() {
+        var tenant domain.Tenant
+        err := rows.Scan(&tenant.ID, &tenant.Name)
+        if err != nil {
+            return nil, fmt.Errorf("failed to scan tenant metadata: %w", err)
+        }
+        tenants = append(tenants, tenant)
+    }
+
+    return tenants, nil
+}

@@ -12,6 +12,7 @@ import (
     "getnoti.com/pkg/queue"
     "getnoti.com/pkg/vault"
     "getnoti.com/pkg/workerpool"
+	"getnoti.com/pkg/migration"
 )
 
 type App struct {
@@ -59,6 +60,12 @@ func (a *App) initialize() error {
         return fmt.Errorf("failed to initialize main database: %w", err)
     }
 
+ 
+
+ // Run database migrations
+ if err := migrate.Migrate(a.config.Database.DSN); err != nil {
+	 return fmt.Errorf("failed to run database migrations: %w", err)
+ }
     // Initialize main queueManager
     a.queueManager = queue.NewQueueManager(queue.Config(a.config.Queue), a.logger)
 
