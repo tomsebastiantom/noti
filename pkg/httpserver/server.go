@@ -5,8 +5,10 @@ import (
 	"net"
 	"net/http"
 	"time"
+	// "fmt"
 
 	"getnoti.com/config"
+	"getnoti.com/pkg/logger"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -18,22 +20,28 @@ const (
 )
 
 // Server -.
+// Server -.
 type Server struct {
-	server          *http.Server
-	notify          chan error
-	shutdownTimeout time.Duration
-	Router          *chi.Mux
+    server          *http.Server
+    notify          chan error
+    shutdownTimeout time.Duration
+    Router          *chi.Mux
+    logger          *logger.Logger  // Add this line
 }
+
 
 // New creates a new HTTP server.
-func New(cfg *config.Config, router *chi.Mux) *Server {
-	server := prepareHttpServer(cfg, router)
-	server.start()
+func New(cfg *config.Config, router *chi.Mux,logger *logger.Logger) (*Server, error) {
+	server := prepareHttpServer(cfg, router,logger)
 
-	return server
+    err:= server.Start()
+	if err!=nil{
+		return nil, err
+	}
+	return server,nil
 }
 
-func prepareHttpServer(cfg *config.Config, router *chi.Mux) *Server {
+func prepareHttpServer(cfg *config.Config, router *chi.Mux,logger *logger.Logger) *Server {
 	httpServer := &http.Server{
 		Handler:      router,
 		ReadTimeout:  _defaultReadTimeout,
@@ -47,16 +55,22 @@ func prepareHttpServer(cfg *config.Config, router *chi.Mux) *Server {
 		notify:          make(chan error, 1),
 		shutdownTimeout: _defaultShutdownTimeout,
 		Router:          router,
+		logger:          logger, 
 	}
 	return s
 }
 
-func (s *Server) start() {
-	go func() {
-		s.notify <- s.server.ListenAndServe()
-		close(s.notify)
-	}()
+func (s *Server) Start() error {
+   
+    err:=s.server.ListenAndServe()
+    if err!=nil{
+		return err
+		
+	}
+	return nil
 }
+
+
 
 // Notify returns a channel to notify when the server is closed.
 func (s *Server) Notify() <-chan error {

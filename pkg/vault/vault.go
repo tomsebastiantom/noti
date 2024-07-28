@@ -35,24 +35,43 @@ type Credential struct {
 }
 
 func Initialize(cfg *VaultConfig) error {
-	var err error
-	once.Do(func() {
+    var err error
+    once.Do(func() {
+        fmt.Println("Initializing Vault...")
 
-		config.Address = cfg.Address
-		config.Token = cfg.Token
-		vaultConfig := api.DefaultConfig()
-		vaultConfig.Address = config.Address
-		client, err = api.NewClient(vaultConfig)
-		if err != nil {
-			err = fmt.Errorf("failed to create Vault client: %v", err)
-			return
-		}
+        if cfg == nil {
+            err = fmt.Errorf("vault configuration is nil")
+            fmt.Println("Error: Vault configuration is nil")
+            return
+        }
 
-		client.SetToken(config.Token)
-		config = cfg
-	})
-	return err
+        fmt.Printf("Vault Address: %s, Token: %s\n", cfg.Address, cfg.Token)
+
+        // Initialize the config variable
+        config = &VaultConfig{
+            Address: cfg.Address,
+            Token:   cfg.Token,
+        }
+
+        fmt.Println("Creating Vault client...")
+        vaultConfig := api.DefaultConfig()
+        vaultConfig.Address = config.Address
+        client, err = api.NewClient(vaultConfig)
+        if err != nil {
+            err = fmt.Errorf("failed to create Vault client: %v", err)
+            fmt.Printf("Error creating Vault client: %v\n", err)
+            return
+        }
+
+        fmt.Println("Setting Vault token...")
+        client.SetToken(config.Token)
+
+        fmt.Println("Vault initialization completed successfully")
+    })
+    return err
 }
+
+
 
 func RefreshToken(tenantID string) error {
 	mutex.Lock()
