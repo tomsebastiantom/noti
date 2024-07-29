@@ -1,13 +1,14 @@
-package updateprovider
+package getproviders
 
-type UpdateProviderRequest struct {
-    ID       string              `json:"id"`
-    Name     string              `json:"name"`
-    Channels []ProviderChannelDTO `json:"channels"`
-    Enabled  bool                `json:"enabled"`
+type GetProvidersRequest struct {
+    TenantID string `json:"tenant_id"`
 }
 
-type UpdateProviderResponse struct {
+type GetProvidersResponse struct {
+    Providers []ProviderResponse `json:"providers"`
+}
+
+type ProviderResponse struct {
     ID       string              `json:"id"`
     Name     string              `json:"name"`
     Channels []ProviderChannelDTO `json:"channels"`

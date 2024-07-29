@@ -9,7 +9,7 @@ import (
 	"getnoti.com/internal/providers/repos/implementations"
 	"getnoti.com/internal/providers/usecases/create_provider"
 	"getnoti.com/internal/providers/usecases/get_provider"
-	"getnoti.com/internal/providers/usecases/get_provider_by_tenant"
+	"getnoti.com/internal/providers/usecases/get_providers"
 	"getnoti.com/internal/providers/usecases/update_provider"
 	custom "getnoti.com/internal/shared/middleware"
 	"getnoti.com/pkg/db"
@@ -102,13 +102,13 @@ func (h *Handlers) GetProviderByTenant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Initialize use case
-	getProviderByTenantUseCase := getproviderbytenant.NewGetProviderByTenantUseCase(templateRepo)
+	getProvidersUseCase := getproviders.NewGetProvidersUseCase(templateRepo)
 
 	// Initialize controller
-	getProviderByTenantController := getproviderbytenant.NewGetProviderByTenantController(getProviderByTenantUseCase)
+	getProvidersController := getproviders.NewGetProvidersController(getProvidersUseCase)
 
 	// Handle the request
-	commonHandler(getProviderByTenantController.GetProviderByTenant)(w, r)
+	commonHandler(getProvidersController.GetProviders)(w, r)
 }
 
 // NewRouter sets up the router with all routes
@@ -148,8 +148,8 @@ func commonHandler(handlerFunc interface{}) http.HandlerFunc {
 			res = h(ctx, req.(createprovider.CreateProviderRequest))
 		case func(context.Context, updateprovider.UpdateProviderRequest) updateprovider.UpdateProviderResponse:
 			res = h(ctx, req.(updateprovider.UpdateProviderRequest))
-		case func(context.Context, getproviderbytenant.GetProviderByTenantRequest) getproviderbytenant.GetProviderByTenantResponse:
-			res = h(ctx, req.(getproviderbytenant.GetProviderByTenantRequest))
+		case func(context.Context, getproviders.GetProvidersRequest) getproviders.GetProvidersResponse:
+			res = h(ctx, req.(getproviders.GetProvidersRequest))
 		default:
 			http.Error(w, "Unsupported handler function", http.StatusInternalServerError)
 			return

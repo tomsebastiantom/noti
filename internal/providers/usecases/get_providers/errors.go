@@ -1,4 +1,4 @@
-package getproviderbytenant
+package getproviders
 
 import "errors"
 

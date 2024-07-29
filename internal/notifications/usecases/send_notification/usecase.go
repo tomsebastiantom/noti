@@ -3,30 +3,33 @@ package sendnotification
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"getnoti.com/internal/notifications/domain"
 	"getnoti.com/internal/notifications/repos"
+	providerDomain "getnoti.com/internal/providers/domain"
 	"getnoti.com/internal/providers/dtos"
+	"getnoti.com/internal/providers/repos"
 	"getnoti.com/internal/providers/services"
 	"getnoti.com/internal/shared/utils"
 	"getnoti.com/internal/templates/services"
-	"getnoti.com/internal/tenants/services"
+
 	"getnoti.com/pkg/cache"
 )
 
 type SendNotificationUseCase struct {
-	tenantService          *tenants.TenantService
 	providerService        *providers.ProviderService
 	templateService        *templates.TemplateService
+	providerRepo           repos.ProviderRepository
 	notificationRepository repository.NotificationRepository
 	preferencesCache       *cache.GenericCache
 }
 
-func NewSendNotificationUseCase(tenantService *tenants.TenantService, providerService *providers.ProviderService, templateService *templates.TemplateService, notificationRepository repository.NotificationRepository, preferencesCache *cache.GenericCache) *SendNotificationUseCase {
+func NewSendNotificationUseCase(providerService *providers.ProviderService, templateService *templates.TemplateService, providerRepo repos.ProviderRepository, notificationRepository repository.NotificationRepository, preferencesCache *cache.GenericCache) *SendNotificationUseCase {
 	return &SendNotificationUseCase{
-		tenantService:          tenantService,
 		providerService:        providerService,
 		templateService:        templateService,
+		providerRepo:           providerRepo,
 		notificationRepository: notificationRepository,
 		preferencesCache:       preferencesCache,
 	}
@@ -91,34 +94,47 @@ func (u *SendNotificationUseCase) getProviderID(ctx context.Context, req SendNot
 
 	// Try to get from cache first
 	if cachedPrefs, found := preferencesCache.Get(cacheKey); found {
-		preferences := cachedPrefs.(map[string]string)
-		return u.extractProviderIDFromPreferences(preferences)
+		providers := cachedPrefs.([]*providerDomain.Provider)
+		return u.extractProviderIDFromProviders(providers)
 	}
 
-	// If not in cache, fetch from tenant service
-	preferences, err := u.tenantService.GetPreferences(ctx, req.TenantID, req.Channel)
+	// If not in cache, fetch from provider Repo
+	providers, err := u.providerRepo.GetProviders(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch preferences: %w", err)
+		return "", fmt.Errorf("failed to fetch providers: %w", err)
 	}
 
-	// Cache the preferences
-	preferencesCache.Set(cacheKey, preferences, 1)
+	// Filter providers for the requested channel
+	channelProviders := u.filterProvidersByChannel(providers, req.Channel)
 
-	return u.extractProviderIDFromPreferences(preferences)
+	// Sort providers by priority (lowest number = highest priority)
+	sort.Slice(channelProviders, func(i, j int) bool {
+		return channelProviders[i].Channels[req.Channel].Priority < channelProviders[j].Channels[req.Channel].Priority
+	})
+
+	// Cache the providers
+	preferencesCache.Set(cacheKey, channelProviders, 1)
+
+	return u.extractProviderIDFromProviders(channelProviders)
 }
 
-func (u *SendNotificationUseCase) extractProviderIDFromPreferences(preferences map[string]string) (string, error) {
-	providerID, exists := preferences["ProviderID"]
-	if !exists {
-		return "", fmt.Errorf("provider ID not found in preferences")
+func (u *SendNotificationUseCase) extractProviderIDFromProviders(providers []*providerDomain.Provider) (string, error) {
+	for _, provider := range providers {
+		if provider.Enabled {
+			return provider.ID, nil
+		}
 	}
+	return "", fmt.Errorf("no enabled provider found")
+}
 
-	enabled, exists := preferences["Enabled"]
-	if !exists || enabled != "true" {
-		return "", fmt.Errorf("channel not enabled or preference not found")
+func (u *SendNotificationUseCase) filterProvidersByChannel(providers []*providerDomain.Provider, channel string) []*providerDomain.Provider {
+	var channelProviders []*providerDomain.Provider
+	for _, provider := range providers {
+		if _, ok := provider.Channels[channel]; ok {
+			channelProviders = append(channelProviders, provider)
+		}
 	}
-
-	return providerID, nil
+	return channelProviders
 }
 
 func (u *SendNotificationUseCase) createNotification(ctx context.Context, req SendNotificationRequest, providerID string) (*domain.Notification, error) {

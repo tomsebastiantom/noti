@@ -3,6 +3,7 @@ package updateprovider
 import (
     "context"
     "getnoti.com/internal/providers/repos"
+    "getnoti.com/internal/providers/domain"
 )
 
 type UpdateProviderUseCase interface {
@@ -26,17 +27,33 @@ func (uc *updateProviderUseCase) Execute(ctx context.Context, req UpdateProvider
     }
 
     provider.Name = req.Name
-    provider.Channels = req.Channels
+    provider.Enabled = req.Enabled
+    provider.Channels = make(map[string]domain.ProviderChannel)
+
+    for _, channelDTO := range req.Channels {
+        provider.Channels[channelDTO.Channel] = domain.ProviderChannel{
+            Channel:  channelDTO.Channel,
+            Priority: channelDTO.Priority,
+        }
+    }
 
     updatedProvider, err := uc.repo.UpdateProvider(ctx, provider)
     if err != nil {
         return UpdateProviderResponse{}, err
     }
 
+    responseChannels := make([]ProviderChannelDTO, 0, len(updatedProvider.Channels))
+    for _, channel := range updatedProvider.Channels {
+        responseChannels = append(responseChannels, ProviderChannelDTO{
+            Channel:  channel.Channel,
+            Priority: channel.Priority,
+        })
+    }
+
     return UpdateProviderResponse{
         ID:       updatedProvider.ID,
         Name:     updatedProvider.Name,
-        Channels: updatedProvider.Channels,
-        TenantID: updatedProvider.TenantID,
+        Channels: responseChannels,
+        Enabled:  updatedProvider.Enabled,
     }, nil
 }

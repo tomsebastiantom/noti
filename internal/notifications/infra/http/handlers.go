@@ -8,13 +8,11 @@ import (
 	"getnoti.com/internal/notifications/repos/implementations"
 	"getnoti.com/internal/notifications/usecases/send_notification"
 	"getnoti.com/internal/providers/infra/providers"
+	providerrepos "getnoti.com/internal/providers/repos/implementations"
 	providerService "getnoti.com/internal/providers/services"
 	"getnoti.com/internal/shared/middleware"
 	templatesrepo "getnoti.com/internal/templates/repos/implementations"
 	templates "getnoti.com/internal/templates/services"
-	tenantrepos "getnoti.com/internal/tenants/repos/implementations"
-	providerrepos "getnoti.com/internal/providers/repos/implementations"
-	tenants "getnoti.com/internal/tenants/services"
 	"getnoti.com/pkg/cache"
 	"getnoti.com/pkg/db"
 	"getnoti.com/pkg/queue"
@@ -50,18 +48,16 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	// Initialize repositories
 	notificationRepo := repos.NewNotificationRepository(database)
 
-	// tenantPreferenceRepo := tenantrepos.NewTenantPreferenceRepository(database)
-
 	templatesRepo := templatesrepo.NewTemplateRepository(database)
 
-	providerRepo:= providerrepos.NewProviderRepository(database)
+	providerRepo := providerrepos.NewProviderRepository(database)
 	// Initialize services
-	// tenantService := tenants.NewTenantService(tenantPreferenceRepo)
-	providerFactory := providers.NewProviderFactory(h.GenericCache,providerRepo)
+
+	providerFactory := providers.NewProviderFactory(h.GenericCache, providerRepo)
 	providerService := providerService.NewProviderService(providerFactory, notificationQueue, h.workerPoolManager)
 	templateService := templates.NewTemplateService(templatesRepo)
 	// Initialize use case
-	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(tenantService, providerService, templateService, notificationRepo, h.GenericCache)
+	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(providerService, templateService,providerRepo, notificationRepo, h.GenericCache)
 
 	// Initialize controller
 	sendNotificationController := sendnotification.NewSendNotificationController(sendNotificationUseCase)

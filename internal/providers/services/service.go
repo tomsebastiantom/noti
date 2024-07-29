@@ -35,3 +35,12 @@ func (s *ProviderService) DispatchNotification(ctx context.Context, tenantID str
 func (s *ProviderService) Shutdown() {
     s.notificationManager.Shutdown()
 }
+
+func (s *ProviderService) GetPreferences(ctx context.Context,l string,lo string) map[string]string {
+    return map[string]string{
+        "df": "dsd",
+        "gh": "dd",
+    }
+}
+
+
