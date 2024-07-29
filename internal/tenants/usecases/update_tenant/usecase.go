@@ -22,15 +22,27 @@ func NewUpdateTenantUseCase(repo repository.TenantRepository) UpdateTenantUseCas
     }
 }
 
-func (uc *updateTenantUseCase) Execute(ctx context.Context, input UpdateTenantRequest) UpdateTenantResponse {
-    tenant, err := uc.repo.GetTenantByID(ctx, input.ID)
+func (uc *updateTenantUseCase) Execute(ctx context.Context, req UpdateTenantRequest) UpdateTenantResponse {
+    tenant, err := uc.repo.GetTenantByID(ctx, req.ID)
     if err != nil {
         return UpdateTenantResponse{Success: false, Error: err.Error()}
     }
 
-    tenant.Name = input.Name
+    // Update tenant name
+    tenant.Name = req.Name
 
-    tenant.Preferences = input.Preferences
+    // Update DB configurations
+    for key, config := range req.DBConfigs {
+        if err := config.Validate(); err != nil {
+            return UpdateTenantResponse{Success: false, Error: err.Error()}
+        }
+        tenant.AddDBConfig(key, config)
+    }
+
+    // Validate the updated tenant
+    if err := tenant.Validate(); err != nil {
+        return UpdateTenantResponse{Success: false, Error: err.Error()}
+    }
 
     if err := uc.repo.Update(ctx, tenant); err != nil {
         return UpdateTenantResponse{Success: false, Error: err.Error()}
@@ -38,3 +50,4 @@ func (uc *updateTenantUseCase) Execute(ctx context.Context, input UpdateTenantRe
 
     return UpdateTenantResponse{Success: true, Tenant: tenant}
 }
+

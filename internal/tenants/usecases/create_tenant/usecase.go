@@ -23,28 +23,37 @@ func NewCreateTenantUseCase(repo repository.TenantRepository) CreateTenantUseCas
 }
 
 // Method Implementation
-func (uc *createTenantUseCase) Execute(ctx context.Context, input CreateTenantRequest) (CreateTenantResponse, error) {
-    // Map CreateTenantRequest to domain.Tenant
-    preferences := make(map[string]domain.ChannelPreference)
-    for key, pref := range input.Preferences {
-        preferences[key] = domain.ChannelPreference{
-            ChannelName: pref.ChannelName,
-            Enabled:     pref.Enabled,
-            ProviderID:  pref.ProviderID,
+func (uc *createTenantUseCase) Execute(ctx context.Context, req CreateTenantRequest) (CreateTenantResponse, error) {
+    // Create a new tenant using the domain package
+    tenant := domain.NewTenant(req.ID, req.Name)
+
+    // Add DB configurations if provided
+    for key, config := range req.DBConfigs {
+        dbCreds, err := domain.NewDBCredentials(
+            config.Type,
+            config.DSN,
+            config.Host,
+            config.Port,
+            config.Username,
+            config.Password,
+            config.DBName,
+        )
+        if err != nil {
+            return CreateTenantResponse{}, err
         }
+        tenant.AddDBConfig(key, dbCreds)
     }
 
-    tenant := domain.Tenant{
-        ID:          input.ID,
-        Name:        input.Name,
-        Preferences: preferences,
+    // Validate the tenant
+    if err := tenant.Validate(); err != nil {
+        return CreateTenantResponse{}, err
     }
 
     // Create tenant in the repository
-    err := uc.repo.CreateTenant(ctx, tenant)
+    err := uc.repo.CreateTenant(ctx, *tenant)
     if err != nil {
         return CreateTenantResponse{}, err
     }
 
-    return CreateTenantResponse{Tenant: tenant}, nil
+    return CreateTenantResponse{Tenant: *tenant}, nil
 }

@@ -50,13 +50,13 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	// Initialize repositories
 	notificationRepo := repos.NewNotificationRepository(database)
 
-	tenantPreferenceRepo := tenantrepos.NewTenantPreferenceRepository(database)
+	// tenantPreferenceRepo := tenantrepos.NewTenantPreferenceRepository(database)
 
 	templatesRepo := templatesrepo.NewTemplateRepository(database)
 
 	providerRepo:= providerrepos.NewProviderRepository(database)
 	// Initialize services
-	tenantService := tenants.NewTenantService(tenantPreferenceRepo)
+	// tenantService := tenants.NewTenantService(tenantPreferenceRepo)
 	providerFactory := providers.NewProviderFactory(h.GenericCache,providerRepo)
 	providerService := providerService.NewProviderService(providerFactory, notificationQueue, h.workerPoolManager)
 	templateService := templates.NewTemplateService(templatesRepo)

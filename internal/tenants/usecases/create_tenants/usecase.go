@@ -20,36 +20,47 @@ func NewCreateTenantsUseCase(repo repository.TenantRepository) CreateTenantsUseC
     }
 }
 
-func (uc *createTenantsUseCase) Execute(ctx context.Context, input CreateTenantsRequest) (CreateTenantsResponse, error) {
+func (uc *createTenantsUseCase) Execute(ctx context.Context, req CreateTenantsRequest) (CreateTenantsResponse, error) {
     var successTenants []string
     var failedTenants []FailedTenant
 
-    for _, tenant := range input.Tenants {
-        if tenant.ID == "" || tenant.Name == "" {
-            failedTenants = append(failedTenants, FailedTenant{ID: tenant.ID, Error: ErrMissingRequiredFields.Error()})
+    for _, tenantReq := range req.Tenants {
+        if tenantReq.ID == "" || tenantReq.Name == "" {
+            failedTenants = append(failedTenants, FailedTenant{ID: tenantReq.ID, Error: ErrMissingRequiredFields.Error()})
             continue
         }
 
-        domainTenant := domain.Tenant{
-            ID:             tenant.ID,
-            Name:           tenant.Name,
-      
-            Preferences:    make(map[string]domain.ChannelPreference),
-        }
+        tenant := domain.NewTenant(tenantReq.ID, tenantReq.Name)
 
-        for key, pref := range tenant.Preferences {
-            domainTenant.Preferences[key] = domain.ChannelPreference{
-                ChannelName: pref.ChannelName,
-                Enabled:     pref.Enabled,
-                ProviderID:  pref.ProviderID,
+        // Add DB configurations if provided
+        for key, config := range tenantReq.DBConfigs {
+            dbCreds, err := domain.NewDBCredentials(
+                config.Type,
+                config.DSN,
+                config.Host,
+                config.Port,
+                config.Username,
+                config.Password,
+                config.DBName,
+            )
+            if err != nil {
+                failedTenants = append(failedTenants, FailedTenant{ID: tenantReq.ID, Error: err.Error()})
+                continue
             }
+            tenant.AddDBConfig(key, dbCreds)
         }
 
-        err := uc.repo.CreateTenant(ctx, domainTenant)
+        // Validate the tenant
+        if err := tenant.Validate(); err != nil {
+            failedTenants = append(failedTenants, FailedTenant{ID: tenantReq.ID, Error: err.Error()})
+            continue
+        }
+
+        err := uc.repo.CreateTenant(ctx, *tenant)
         if err != nil {
-            failedTenants = append(failedTenants, FailedTenant{ID: tenant.ID, Error: err.Error()})
+            failedTenants = append(failedTenants, FailedTenant{ID: tenantReq.ID, Error: err.Error()})
         } else {
-            successTenants = append(successTenants, tenant.ID)
+            successTenants = append(successTenants, tenantReq.ID)
         }
     }
 
@@ -62,3 +73,5 @@ func (uc *createTenantsUseCase) Execute(ctx context.Context, input CreateTenants
         FailedTenants:  failedTenants,
     }, nil
 }
+
+

@@ -1,6 +1,9 @@
 package createtenants
 import "getnoti.com/internal/tenants/domain"
 
+
+
+
 type CreateTenantsRequest struct {
     Tenants []domain.Tenant
 }

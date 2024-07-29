@@ -5,9 +5,9 @@ import (
 )
 
 type UpdateTenantRequest struct {
-	ID             string
+	ID string
 	Name           string
-	Preferences    map[string]domain.ChannelPreference
+	DBConfigs map[string]*domain.DBCredentials
 }
 
 type UpdateTenantResponse struct {
