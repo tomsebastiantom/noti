@@ -7,18 +7,13 @@ import (
 	"log"
 	"net/url"
 	"strings"
-	"sync"
 
-	"getnoti.com/config"
-	"getnoti.com/pkg/cache"
 	"getnoti.com/pkg/logger"
-	"getnoti.com/pkg/vault"
 
 	_ "github.com/denisenkom/go-mssqldb" // Microsoft SQL Server driver
 	_ "github.com/go-sql-driver/mysql"   // MySQL driver
 	_ "github.com/lib/pq"                // PostgreSQL driver
 	sqlite "modernc.org/sqlite"          // SQLite driver
-    "github.com/google/uuid"
 )
 
 func init() {
@@ -172,70 +167,74 @@ func buildDSN(config map[string]string) string {
 	}
 }
 
-func createTenantDatabase(tenantID string, dbConfig map[string]interface{}, logger *logger.Logger) (Database, error) {
+func createTenantDatabase(tenantID string, dbConfig map[string]interface{}, logger *logger.Logger) (Database, map[string]interface{}, error) {
 	dsn, ok := dbConfig["dsn"].(string)
 	if !ok {
-		return nil, fmt.Errorf("invalid DSN in configuration")
+		return nil, nil, fmt.Errorf("invalid DSN in configuration")
 	}
 
-	dbType, err := getDatabaseTypeFromDSN(dsn)
-	if err != nil {
-		return nil, err
+	dbType, ok := dbConfig["type"].(string)
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid database type in configuration")
 	}
 
-	err = createDatabase(dbType, dsn, tenantID)
+	err := createDatabase(dbType, dsn, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create database for tenant %s: %v", tenantID, err)
+		return nil, nil, fmt.Errorf("failed to create database for tenant %s: %v", tenantID, err)
 	}
 
 	updatedDSN := updateDSNWithTenant(dbType, dsn, tenantID)
 
-	credentials := map[string]interface{}{
+	updatedConfig := map[string]interface{}{
 		"type": dbType,
 		"dsn":  updatedDSN,
 	}
 
-	return NewDatabaseFactory(credentials, logger)
-}
-
-func getDatabaseTypeFromDSN(dsn string) (string, error) {
-	u, err := url.Parse(dsn)
+	newDBConnection, err := NewDatabaseFactory(updatedConfig, logger)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse DSN: %v", err)
+		return nil, nil, fmt.Errorf("failed to create new database connection: %v", err)
 	}
 
-	switch u.Scheme {
-	case "mysql":
-		return "mysql", nil
-	case "postgres", "postgresql":
-		return "postgres", nil
-	case "cockroach", "cockroachdb":
-		return "cockroach", nil
-	default:
-		return "", fmt.Errorf("unsupported database type: %s", u.Scheme)
-	}
+	return newDBConnection, updatedConfig, nil
 }
 
 func createDatabase(dbType, dsn, tenantID string) error {
-	db, err := sql.Open(dbType, dsn)
-	if err != nil {
-		return fmt.Errorf("failed to open connection: %v", err)
-	}
-	defer db.Close()
+	switch dbType {
+	case "sqlite":
+		// Create a new SQLite database file for the tenant
+		tenantDBFile := fmt.Sprintf("%s.db", tenantID)
+		db, err := sql.Open(dbType, tenantDBFile)
+		if err != nil {
+			return fmt.Errorf("failed to open connection: %v", err)
+		}
+		defer db.Close()
 
-	query := fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", tenantID)
-	if dbType == "postgres" || dbType == "cockroach" {
-		query = fmt.Sprintf("CREATE DATABASE %s", tenantID)
+	case "postgres", "cockroach":
+		db, err := sql.Open(dbType, dsn)
+		if err != nil {
+			return fmt.Errorf("failed to open connection: %v", err)
+		}
+		defer db.Close()
+
+		query := fmt.Sprintf("CREATE DATABASE %s", tenantID)
+		_, err = db.Exec(query)
+		if err != nil {
+			return fmt.Errorf("failed to create database: %v", err)
+		}
+
+	default:
+		return fmt.Errorf("unsupported database type: %s", dbType)
 	}
 
-	_, err = db.Exec(query)
-	if err != nil {
-		return fmt.Errorf("failed to create database: %v", err)
-	}
 	return nil
 }
 
 func updateDSNWithTenant(dbType, dsn, tenantID string) string {
+
+	if dbType == "sqlite" {
+		return fmt.Sprintf("%s.db", tenantID)
+	}
+
 	u, err := url.Parse(dsn)
 	if err != nil {
 		return dsn // Return original DSN if parsing fails
@@ -256,80 +255,3 @@ func updateDSNWithTenant(dbType, dsn, tenantID string) string {
 }
 
 // Manager manages database connections and caches them.
-type Manager struct {
-	cache  *cache.GenericCache
-	mutex  sync.Mutex
-    config            *config.Config
-	logger *logger.Logger
-}
-
-// NewManager creates a new Manager instance.
-func NewManager(cache *cache.GenericCache, vaultConfig *vault.VaultConfig,config            *config.Config,logger *logger.Logger) *Manager {
-	return &Manager{
-		cache:  cache,
-		logger: logger,
-        config : config,
-	}
-}
-
-// GetDatabaseConnection retrieves a database connection for the given tenant ID.
-func (m *Manager) GetDatabaseConnection(tenantID string) (Database, error) {
-    dbConn, found := m.cache.Get(tenantID)
-    if !found {
-        m.mutex.Lock()
-        defer m.mutex.Unlock()
-
-        dbConn, found = m.cache.Get(tenantID)
-        if !found {
-            m.logger.Debug(fmt.Sprintf("Creating new database connection for tenant: %s", tenantID))
-            credentials, err := vault.GetClientCredentials(tenantID, vault.DBCredential, "")
-            if err != nil {
-                return nil, fmt.Errorf("failed to get database credentials for tenant %s: %v", tenantID, err)
-            }
-
-            dbConfig := make(map[string]interface{})
-
-            if dsn, ok := credentials["dsn"].(string); ok {
-                dbConfig["type"] = credentials["type"]
-                dbConfig["dsn"] = dsn
-            } else {
-                dbConfig["type"] = credentials["type"]
-                dbConfig["host"] = credentials["host"]
-                dbConfig["port"] = credentials["port"]
-                dbConfig["username"] = credentials["username"]
-                dbConfig["password"] = credentials["password"]
-                dbConfig["database"] = credentials["database"]
-            }
-
-            dbConn, err = NewDatabaseFactory(dbConfig, m.logger)
-            if err != nil {
-                return nil, fmt.Errorf("failed to create database connection for tenant %s: %v", tenantID, err)
-            }
-
-            m.cache.Set(tenantID, dbConn, 1)
-        }
-    }
-
-    return dbConn.(Database), nil
-}
-
-func (m *Manager) CreateNewTenantDatabase(tenantID string) (Database, error) {
-
-    if tenantID == "" {
-        tenantID = uuid.New().String()
-    }
-
-    dbConfig := map[string]interface{}{
-        "type": m.config.Database.Type,
-        "dsn":  m.config.Database.DSN,
-    }
-
-    dbConn, err := createTenantDatabase(tenantID, dbConfig, m.logger)
-    if err != nil {
-        return nil, fmt.Errorf("failed to create new tenant database for %s: %v", tenantID, err)
-    }
-
-    m.cache.Set(tenantID, dbConn, 1)
-
-    return dbConn, nil
-}

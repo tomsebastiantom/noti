@@ -3,7 +3,6 @@ package tenantroutes
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 
 	tenantMiddleware "getnoti.com/internal/shared/middleware"
 	"getnoti.com/internal/tenants/repos"
@@ -14,6 +13,7 @@ import (
 	"getnoti.com/internal/tenants/usecases/update_tenant"
 	"getnoti.com/pkg/db"
 	"github.com/go-chi/chi/v5"
+	"net/http"
 )
 
 // Handlers struct to hold all the handlers
@@ -44,25 +44,13 @@ func (h *Handlers) getTenantRepo(r *http.Request) (repository.TenantRepository, 
 	return tenantRepo, nil
 }
 
-// Helper function to retrieve tenant ID and database connection
-func (h *Handlers) getNewTenantRepo(r *http.Request) (repository.TenantRepository, error) {
-	tenantID := r.Context().Value(tenantMiddleware.TenantIDKey).(string)
-
-	// Retrieve the database connection
-	database, err := h.DBManager.CreateNewTenantDatabase(tenantID)
-	if err != nil {
-		return nil, err
-	}
-	//create a new db in sql db
-	// Initialize repository
-	tenantRepo := repos.NewTenantRepository(h.MainDB, database)
-	return tenantRepo, nil
-}
 
 func (h *Handlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
+
 	tenantRepo, err := h.getNewTenantRepo(r)
+
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -96,7 +84,7 @@ func (h *Handlers) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) GetTenant(w http.ResponseWriter, r *http.Request) {
 	tenantRepo, err := h.getTenantRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -151,8 +139,6 @@ func commonHandler(handlerFunc interface{}) http.HandlerFunc {
 			}
 		}
 
-		// Call the handler function with the context and request
-		// Call the handler function with the context and request
 		var res interface{}
 		var err error
 
@@ -178,7 +164,7 @@ func commonHandler(handlerFunc interface{}) http.HandlerFunc {
 
 		if err != nil {
 
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
