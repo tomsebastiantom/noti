@@ -39,14 +39,28 @@ func (h *Handlers) getTenantRepo(r *http.Request) (repository.TenantRepository, 
 	if err != nil {
 		return nil, err
 	}
+	// Initialize repository
+	tenantRepo := repos.NewTenantRepository(h.MainDB, database)
+	return tenantRepo, nil
+}
 
+// Helper function to retrieve tenant ID and database connection
+func (h *Handlers) getNewTenantRepo(r *http.Request) (repository.TenantRepository, error) {
+	tenantID := r.Context().Value(tenantMiddleware.TenantIDKey).(string)
+
+	// Retrieve the database connection
+	database, err := h.DBManager.CreateNewTenantDatabase(tenantID)
+	if err != nil {
+		return nil, err
+	}
+	//create a new db in sql db
 	// Initialize repository
 	tenantRepo := repos.NewTenantRepository(h.MainDB, database)
 	return tenantRepo, nil
 }
 
 func (h *Handlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
-	tenantRepo, err := h.getTenantRepo(r)
+	tenantRepo, err := h.getNewTenantRepo(r)
 	if err != nil {
 		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
 		return

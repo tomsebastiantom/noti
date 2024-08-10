@@ -48,7 +48,7 @@ func (a *App) initialize() error {
     a.cache = cache.NewGenericCache(1e7, 1<<30, 64)
 
     // Initialize database manager
-    a.db = db.NewManager(a.cache, (*vault.VaultConfig)(&a.config.Vault), a.logger)
+    a.db = db.NewManager(a.cache, (*vault.VaultConfig)(&a.config.Vault), a.config,a.logger)
 
     // Initialize main database
     a.mainDB, err = db.NewDatabaseFactory(map[string]interface{}{
