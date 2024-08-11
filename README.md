@@ -67,7 +67,7 @@ This project, **Noti**, is a **Unified Notification Service** written in Go usin
 We welcome contributions! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License 
 
 ## Acknowledgments
 - Inspired by various DDD resources and Go projects.
