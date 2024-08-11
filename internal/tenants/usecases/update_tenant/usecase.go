@@ -1,9 +1,10 @@
-
 package updatetenant
 
 import (
-    "context"
-    repository "getnoti.com/internal/tenants/repos"
+	"context"
+
+	"getnoti.com/internal/tenants/domain"
+	repository "getnoti.com/internal/tenants/repos"
 )
 
 type UpdateTenantUseCase interface {
@@ -32,11 +33,20 @@ func (uc *updateTenantUseCase) Execute(ctx context.Context, req UpdateTenantRequ
     tenant.Name = req.Name
 
     // Update DB configurations
-    for key, config := range req.DBConfigs {
-        if err := config.Validate(); err != nil {
+    if req.DBConfigs != nil {
+        dbCreds, err := domain.NewDBCredentials(
+            req.DBConfigs.Type,
+            req.DBConfigs.DSN,
+            req.DBConfigs.Host,
+            req.DBConfigs.Port,
+            req.DBConfigs.Username,
+            req.DBConfigs.Password,
+            req.DBConfigs.DBName,
+        )
+        if err != nil {
             return UpdateTenantResponse{Success: false, Error: err.Error()}
         }
-        tenant.AddDBConfig(key, config)
+        tenant.SetDBConfig(dbCreds)
     }
 
     // Validate the updated tenant

@@ -254,4 +254,4 @@ func updateDSNWithTenant(dbType, dsn, tenantID string) string {
 	return u.String()
 }
 
-// Manager manages database connections and caches them.
+

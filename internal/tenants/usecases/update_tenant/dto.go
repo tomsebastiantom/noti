@@ -7,7 +7,7 @@ import (
 type UpdateTenantRequest struct {
 	ID string
 	Name           string
-	DBConfigs map[string]*domain.DBCredentials
+	DBConfigs *domain.DBCredentials
 }
 
 type UpdateTenantResponse struct {

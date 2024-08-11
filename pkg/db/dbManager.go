@@ -15,6 +15,8 @@ import (
 	_ "github.com/lib/pq"                // PostgreSQL driver
 )
 
+// Manager manages database connections and caches them.
+
 type Manager struct {
 	cache  *cache.GenericCache
 	mutex  sync.Mutex

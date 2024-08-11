@@ -33,21 +33,21 @@ func (uc *createTenantsUseCase) Execute(ctx context.Context, req CreateTenantsRe
         tenant := domain.NewTenant(tenantReq.ID, tenantReq.Name)
 
         // Add DB configurations if provided
-        for key, config := range tenantReq.DBConfigs {
+        if tenantReq.DBConfig != nil {
             dbCreds, err := domain.NewDBCredentials(
-                config.Type,
-                config.DSN,
-                config.Host,
-                config.Port,
-                config.Username,
-                config.Password,
-                config.DBName,
+                tenantReq.DBConfig.Type,
+                tenantReq.DBConfig.DSN,
+                tenantReq.DBConfig.Host,
+                tenantReq.DBConfig.Port,
+                tenantReq.DBConfig.Username,
+                tenantReq.DBConfig.Password,
+                tenantReq.DBConfig.DBName,
             )
             if err != nil {
                 failedTenants = append(failedTenants, FailedTenant{ID: tenantReq.ID, Error: err.Error()})
                 continue
             }
-            tenant.AddDBConfig(key, dbCreds)
+            tenant.SetDBConfig(dbCreds)
         }
 
         // Validate the tenant

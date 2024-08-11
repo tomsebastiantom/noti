@@ -2,15 +2,14 @@ package tenantroutes
 
 import (
 	"bytes"
-
 	"encoding/json"
 	"fmt"
 
 	"getnoti.com/internal/tenants/domain"
 	"getnoti.com/internal/tenants/repos"
 	"getnoti.com/internal/tenants/repos/implementations"
-
 	"getnoti.com/pkg/db"
+	"getnoti.com/pkg/migration"
 
 	"github.com/google/uuid"
 	"io"
@@ -18,43 +17,72 @@ import (
 )
 
 func (h *Handlers) getNewTenantRepo(r *http.Request) (repository.TenantRepository, error) {
-	tenantInfo, err := h.extractTenantInfo(r)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract tenant info: %w", err)
-	}
+    // Read the body content
+    bodyContent, err := io.ReadAll(r.Body)
+    if err != nil {
+        return nil, fmt.Errorf("failed to read request body: %w", err)
+    }
+    // Close the original body
+    r.Body.Close()
 
-	database, err := h.getDatabaseConnection(tenantInfo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get database connection: %w", err)
-	}
+    // Extract tenant info
+    tenantInfo, err := h.extractTenantInfo(bodyContent)
+    if err != nil {
+        return nil, fmt.Errorf("failed to extract tenant info: %w", err)
+    }
 
-	err = h.updateRequestBody(r, tenantInfo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to update request body: %w", err)
+    database, err := h.getDatabaseConnection(tenantInfo)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get database connection: %w", err)
+    }
+	//perform migration
+	if err := migrate.Migrate(tenantInfo.DBConfig.DSN,tenantInfo.DBConfig.Type,false); err != nil {
+		return nil, fmt.Errorf("failed to run main Database migrations: %w", err)
 	}
+    // Update request body
+    err = h.updateRequestBody(r, bodyContent, tenantInfo)
+    if err != nil {
+        return nil, fmt.Errorf("failed to update request body: %w", err)
+    }
 
-	tenantRepo := repos.NewTenantRepository(h.MainDB, database)
-	return tenantRepo, nil
+    tenantRepo := repos.NewTenantRepository(h.MainDB, database)
+    return tenantRepo, nil
 }
 
-func (h *Handlers) extractTenantInfo(r *http.Request) (*TenantInfo, error) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read request body: %w", err)
-	}
-	defer r.Body.Close()
 
-	var requestBody map[string]interface{}
-	if err := json.Unmarshal(body, &requestBody); err != nil {
-		return nil, fmt.Errorf("invalid JSON in request body: %w", err)
-	}
+func (h *Handlers) extractTenantInfo(bodyContent []byte) (*TenantInfo, error) {
+    var requestBody map[string]interface{}
+    if err := json.Unmarshal(bodyContent, &requestBody); err != nil {
+        return nil, fmt.Errorf("invalid JSON in request body: %w", err)
+    }
 
-	tenantInfo := &TenantInfo{}
-	tenantInfo.ID = h.getTenantID(requestBody)
-	tenantInfo.DBConfig = h.extractDBConfig(requestBody)
+    tenantInfo := &TenantInfo{}
+    tenantInfo.ID = h.getTenantID(requestBody)
+    tenantInfo.DBConfig = h.extractDBConfig(requestBody)
 
-	return tenantInfo, nil
+    return tenantInfo, nil
 }
+
+func (h *Handlers) updateRequestBody(r *http.Request, bodyContent []byte, tenantInfo *TenantInfo) error {
+    var requestBody map[string]interface{}
+    if err := json.Unmarshal(bodyContent, &requestBody); err != nil {
+        return fmt.Errorf("failed to decode request body: %w", err)
+    }
+
+    requestBody["id"] = tenantInfo.ID
+    requestBody["dbConfig"] = tenantInfo.DBConfig
+
+    updatedBody, err := json.Marshal(requestBody)
+    if err != nil {
+        return fmt.Errorf("failed to marshal updated request body: %w", err)
+    }
+
+    r.Body = io.NopCloser(bytes.NewBuffer(updatedBody))
+    r.ContentLength = int64(len(updatedBody))
+
+    return nil
+}
+
 
 func (h *Handlers) getTenantID(requestBody map[string]interface{}) string {
 	if id, ok := requestBody["id"].(string); ok && id != "" {
@@ -118,23 +146,7 @@ func (h *Handlers) convertDBCredentialsToMap(dbCredentials *domain.DBCredentials
 	}
 }
 
-func (h *Handlers) updateRequestBody(r *http.Request, tenantInfo *TenantInfo) error {
-	var requestBody map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
-		return fmt.Errorf("failed to decode request body: %w", err)
-	}
 
-	requestBody["id"] = tenantInfo.ID
-	requestBody["dbConfig"] = tenantInfo.DBConfig
-
-	updatedBody, err := json.Marshal(requestBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal updated request body: %w", err)
-	}
-
-	r.Body = io.NopCloser(bytes.NewBuffer(updatedBody))
-	return nil
-}
 
 type TenantInfo struct {
 	ID       string

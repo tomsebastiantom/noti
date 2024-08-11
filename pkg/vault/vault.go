@@ -71,37 +71,66 @@ func Initialize(cfg *VaultConfig) error {
     return err
 }
 
-
-
-func RefreshToken(tenantID string) error {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	secret, err := client.Auth().Token().LookupSelf()
+func ensureKVEngineMounted(client *api.Client, mountPath string) error {
+	mounts, err := client.Sys().ListMounts()
 	if err != nil {
-		return fmt.Errorf("failed to lookup token: %v", err)
+		return fmt.Errorf("failed to list mounts: %v", err)
 	}
 
-	expireTime, ok := secret.Data["expire_time"].(string)
-	if !ok {
-		return fmt.Errorf("failed to parse token expiration time")
-	}
-
-	expireTimeParsed, err := time.Parse(time.RFC3339, expireTime)
-	if err != nil {
-		return fmt.Errorf("failed to parse token expiration time: %v", err)
-	}
-
-	if time.Until(expireTimeParsed) < 10*time.Minute {
-		newToken, err := createTenantToken(tenantID)
+	if _, ok := mounts[mountPath]; !ok {
+		// Mount the KV secrets engine
+		err = client.Sys().Mount(mountPath, &api.MountInput{
+			Type: "kv",
+			Options: map[string]string{
+				"version": "2",
+			},
+		})
 		if err != nil {
-			return fmt.Errorf("failed to refresh token: %v", err)
+			return fmt.Errorf("failed to mount KV engine: %v", err)
 		}
-
-		client.SetToken(newToken)
+		fmt.Println("KV secrets engine mounted successfully")
+	} else {
+		fmt.Println("KV secrets engine already mounted")
 	}
 
 	return nil
+}
+
+
+func refreshToken(tenantID string) error {
+    mutex.Lock()
+    defer mutex.Unlock()
+
+    secret, err := client.Auth().Token().LookupSelf()
+    if err != nil {
+        return fmt.Errorf("failed to lookup token: %v", err)
+    }
+
+    // Check if the token has an expiration time
+    expireTime, ok := secret.Data["expire_time"].(string)
+    if !ok {
+        // If there's no expiration time, assume it's a root token or a token without expiry
+       // log.Println("Token does not have an expiration time, assuming it is a root token or a token without expiry.")
+        return nil
+    }
+
+    expireTimeParsed, err := time.Parse(time.RFC3339, expireTime)
+    if err != nil {
+        return fmt.Errorf("failed to parse token expiration time: %v", err)
+    }
+
+    // Refresh the token if it will expire in less than 10 minutes
+    if time.Until(expireTimeParsed) < 10*time.Minute {
+        newToken, err := createTenantToken(tenantID)
+        if err != nil {
+            return fmt.Errorf("failed to refresh token: %v", err)
+        }
+
+        client.SetToken(newToken)
+        
+    } 
+
+    return nil
 }
 
 func createTenantToken(tenantID string) (string, error) {
@@ -125,7 +154,7 @@ func CreateCredential(tenantID string, credType CredentialType, name string, dat
 		return err
 	}
 
-	err = RefreshToken(tenantID)
+	err = refreshToken(tenantID)
 	if err != nil {
 		return err
 	}
@@ -134,6 +163,13 @@ func CreateCredential(tenantID string, credType CredentialType, name string, dat
 	defer mutex.Unlock()
 
 	secretPath := buildSecretPath(tenantID, credType, name)
+
+	// Ensure the KV secrets engine is mounted
+	err = ensureKVEngineMounted(client, "secret/")
+	if err != nil {
+		return err
+	}
+
 	_, err = client.Logical().Write(secretPath, map[string]interface{}{
 		"data": data,
 	})
@@ -144,8 +180,10 @@ func CreateCredential(tenantID string, credType CredentialType, name string, dat
 	return nil
 }
 
+
+
 func GetClientCredentials(tenantID string, credType CredentialType, name string) (map[string]interface{}, error) {
-	err := RefreshToken(tenantID)
+	err := refreshToken(tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +248,7 @@ func UpdateCredential(tenantID string, credType CredentialType, name string, dat
 		return err
 	}
 
-	err = RefreshToken(tenantID)
+	err = refreshToken(tenantID)
 	if err != nil {
 		return err
 	}

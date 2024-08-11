@@ -6,9 +6,9 @@ import (
 )
 
 type Tenant struct {
-    ID        string
-    Name      string
-    DBConfigs map[string]*DBCredentials
+    ID       string
+    Name     string
+    DBConfig *DBCredentials
 }
 
 type DBCredentials struct {
@@ -23,14 +23,14 @@ type DBCredentials struct {
 
 func NewTenant(id, name string) *Tenant {
     return &Tenant{
-        ID:        id,
-        Name:      name,
-        DBConfigs: make(map[string]*DBCredentials),
+        ID:       id,
+        Name:     name,
+        DBConfig: nil,
     }
 }
 
-func (t *Tenant) AddDBConfig(key string, config *DBCredentials) {
-    t.DBConfigs[key] = config
+func (t *Tenant) SetDBConfig(config *DBCredentials) {
+    t.DBConfig = config
 }
 
 func (t *Tenant) Validate() error {
@@ -40,7 +40,10 @@ func (t *Tenant) Validate() error {
     if t.Name == "" {
         return errors.New("tenant name cannot be empty")
     }
-    return nil
+    if t.DBConfig == nil {
+        return errors.New("DBConfig cannot be nil")
+    }
+    return t.DBConfig.Validate()
 }
 
 func NewDBCredentials(dbType string, dsn string, host string, port int, username, password, dbName string) (*DBCredentials, error) {

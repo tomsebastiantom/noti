@@ -3,6 +3,8 @@ package tenantroutes
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
 
 	tenantMiddleware "getnoti.com/internal/shared/middleware"
 	"getnoti.com/internal/tenants/repos"
@@ -13,7 +15,6 @@ import (
 	"getnoti.com/internal/tenants/usecases/update_tenant"
 	"getnoti.com/pkg/db"
 	"github.com/go-chi/chi/v5"
-	"net/http"
 )
 
 // Handlers struct to hold all the handlers
@@ -43,7 +44,6 @@ func (h *Handlers) getTenantRepo(r *http.Request) (repository.TenantRepository, 
 	tenantRepo := repos.NewTenantRepository(h.MainDB, database)
 	return tenantRepo, nil
 }
-
 
 func (h *Handlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
 
@@ -130,10 +130,10 @@ func commonHandler(handlerFunc interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		// Decode the request body into the appropriate request type
-		var req interface{}
+		// Decode the request body into a map[string]interface{}
+		var reqMap map[string]interface{}
 		if r.Method != http.MethodGet && r.Method != http.MethodDelete {
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			if err := json.NewDecoder(r.Body).Decode(&reqMap); err != nil {
 				http.Error(w, "Invalid request body", http.StatusBadRequest)
 				return
 			}
@@ -144,26 +144,38 @@ func commonHandler(handlerFunc interface{}) http.HandlerFunc {
 
 		switch h := handlerFunc.(type) {
 		case func(context.Context, createtenant.CreateTenantRequest) (createtenant.CreateTenantResponse, error):
+			var req createtenant.CreateTenantRequest
+			if err := decodeToStruct(reqMap, &req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			res, err = h(ctx, req)
 
-			res, err = h(ctx, req.(createtenant.CreateTenantRequest))
 		case func(context.Context, updatetenant.UpdateTenantRequest) (updatetenant.UpdateTenantResponse, error):
+			var req updatetenant.UpdateTenantRequest
+			if err := decodeToStruct(reqMap, &req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			res, err = h(ctx, req)
 
-			res, err = h(ctx, req.(updatetenant.UpdateTenantRequest))
 		case func(context.Context, gettenants.GetTenantsRequest) (gettenants.GetTenantsResponse, error):
-
 			res, err = h(ctx, gettenants.GetTenantsRequest{})
 
-		case func(context.Context, gettenant.GetTenantRequest) (gettenant.GetTenantResponse, error):
+		case func(context.Context, gettenant.GetTenantRequest) (gettenant.GetTenantRequest, error):
+			var req gettenant.GetTenantRequest
+			if err := decodeToStruct(reqMap, &req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			res, err = h(ctx, req)
 
-			res, err = h(ctx, req.(gettenant.GetTenantRequest))
 		default:
-
 			http.Error(w, "Unsupported handler function", http.StatusInternalServerError)
 			return
 		}
 
 		if err != nil {
-
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -173,4 +185,15 @@ func commonHandler(handlerFunc interface{}) http.HandlerFunc {
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		}
 	}
+}
+
+func decodeToStruct(input map[string]interface{}, output interface{}) error {
+	jsonData, err := json.Marshal(input)
+	if err != nil {
+		return fmt.Errorf("failed to marshal input: %v", err)
+	}
+	if err := json.Unmarshal(jsonData, output); err != nil {
+		return fmt.Errorf("invalid request structure: %v", err)
+	}
+	return nil
 }

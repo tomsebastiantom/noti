@@ -28,20 +28,20 @@ func (uc *createTenantUseCase) Execute(ctx context.Context, req CreateTenantRequ
     tenant := domain.NewTenant(req.ID, req.Name)
 
     // Add DB configurations if provided
-    for key, config := range req.DBConfigs {
+    if req.DBConfig != nil {
         dbCreds, err := domain.NewDBCredentials(
-            config.Type,
-            config.DSN,
-            config.Host,
-            config.Port,
-            config.Username,
-            config.Password,
-            config.DBName,
+            req.DBConfig.Type,
+            req.DBConfig.DSN,
+            req.DBConfig.Host,
+            req.DBConfig.Port,
+            req.DBConfig.Username,
+            req.DBConfig.Password,
+            req.DBConfig.DBName,
         )
         if err != nil {
             return CreateTenantResponse{}, err
         }
-        tenant.AddDBConfig(key, dbCreds)
+        tenant.SetDBConfig(dbCreds)
     }
 
     // Validate the tenant
