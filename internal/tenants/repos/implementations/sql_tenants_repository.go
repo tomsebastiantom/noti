@@ -244,7 +244,7 @@ func NewTenantsRepository(mainDB db.Database) repository.TenantsRepository {
 }
 
 func (r *sqlTenantsRepository) GetAllTenants(ctx context.Context) ([]domain.Tenant, error) {
-	query := `SELECT id, name FROM tenant_metadata`
+	query := `SELECT id, name FROM tenants`
 	rows, err := r.mainDB.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tenant metadata: %w", err)

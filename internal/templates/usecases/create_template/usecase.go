@@ -1,47 +1,44 @@
 package createtemplate
 
 import (
-    "context"
+	"context"
 
-   "getnoti.com/internal/shared/utils"
-    "getnoti.com/internal/templates/domain"
-    "getnoti.com/internal/templates/repos"
+	"getnoti.com/internal/shared/utils"
+	"getnoti.com/internal/templates/domain"
+	"getnoti.com/internal/templates/repos"
 )
 
 type CreateTemplateUseCase interface {
-    Execute(ctx context.Context, req CreateTemplateRequest) CreateTemplateResponse
+	Execute(ctx context.Context, req CreateTemplateRequest) (CreateTemplateResponse, error)
 }
 
 type createTemplateUseCase struct {
-    repository repos.TemplateRepository
+	repository repos.TemplateRepository
 }
 
 func NewCreateTemplateUseCase(repository repos.TemplateRepository) CreateTemplateUseCase {
-    return &createTemplateUseCase{repository: repository}
+	return &createTemplateUseCase{repository: repository}
 }
 
-func (uc *createTemplateUseCase) Execute(ctx context.Context, req CreateTemplateRequest) CreateTemplateResponse {
-    tmplID, err := utils.GenerateUUID()
-    if err != nil {
-        return CreateTemplateResponse{Success: false, Message: ErrUnexpected.Error()}
-    }
+func (uc *createTemplateUseCase) Execute(ctx context.Context, req CreateTemplateRequest) (CreateTemplateResponse, error) {
+	tmplID, err := utils.GenerateUUID()
+	if err != nil {
+		return CreateTemplateResponse{Success: false}, err
+	}
 
-  
+	tmpl := &domain.Template{
+		ID:        tmplID,
+		TenantID:  req.TenantID,
+		Name:      req.Name,
+		Content:   req.Content,
+		IsPublic:  req.IsPublic,
+		Variables: req.Variables,
+	}
 
-    tmpl := &domain.Template{
-        ID:        tmplID,
-        TenantID:  req.TenantID,
-        Name:      req.Name,
-        Content:   req.Content,
-        IsPublic:  req.IsPublic,
-        Variables: req.Variables,
-    }
+	err = uc.repository.CreateTemplate(ctx, tmpl)
+	if err != nil {
+		return CreateTemplateResponse{Success: false}, err
+	}
 
-    err = uc.repository.CreateTemplate(ctx, tmpl)
-    if err != nil {
-        return CreateTemplateResponse{Success: false, Message: ErrTemplateCreationFailed.Error()}
-    }
-
-    return CreateTemplateResponse{Success: true, Message: "Template created successfully"}
+	return CreateTemplateResponse{Success: true}, nil
 }
-

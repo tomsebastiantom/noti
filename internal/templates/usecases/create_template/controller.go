@@ -14,6 +14,6 @@ func NewCreateTemplateController(useCase CreateTemplateUseCase) *CreateTemplateC
     return &CreateTemplateController{useCase: useCase}
 }
 
-func (c *CreateTemplateController) CreateTemplate(ctx context.Context, req CreateTemplateRequest) CreateTemplateResponse {
+func (c *CreateTemplateController) CreateTemplate(ctx context.Context, req CreateTemplateRequest) (CreateTemplateResponse,error) {
     return c.useCase.Execute(ctx, req)
 }

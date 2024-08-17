@@ -14,6 +14,6 @@ func NewSendNotificationController(useCase *SendNotificationUseCase) *SendNotifi
 	return &SendNotificationController{useCase: useCase}
 }
 
-func (c *SendNotificationController) SendNotification(ctx context.Context, req SendNotificationRequest) SendNotificationResponse {
+func (c *SendNotificationController) SendNotification(ctx context.Context, req SendNotificationRequest) (SendNotificationResponse,error) {
 	return c.useCase.Execute(ctx, req)
 }

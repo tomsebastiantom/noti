@@ -9,6 +9,7 @@ type contextKey string
 
 const TenantIDKey contextKey = "tenantID"
 
+
 func WithTenantID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tenantID := r.Header.Get("X-Tenant-ID")

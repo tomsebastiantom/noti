@@ -1,7 +1,6 @@
 package providerroutes
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -39,8 +38,8 @@ func (h *Handlers) getProviderRepo(r *http.Request) (repos.ProviderRepository, e
 	}
 
 	// Initialize repository
-	templateRepo := repository.NewProviderRepository(database)
-	return templateRepo, nil
+	providerRepo := repository.NewProviderRepository(database)
+	return providerRepo, nil
 }
 
 func (h *Handlers) CreateProvider(w http.ResponseWriter, r *http.Request) {
@@ -50,14 +49,24 @@ func (h *Handlers) CreateProvider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initialize use case
 	createProviderUseCase := createprovider.NewCreateProviderUseCase(providerRepo)
-
-	// Initialize controller
 	createProviderController := createprovider.NewCreateProviderController(createProviderUseCase)
 
-	// Handle the request
-	commonHandler(createProviderController.CreateProvider)(w, r)
+	var req createprovider.CreateProviderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	res, err := createProviderController.CreateProvider(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handlers) UpdateProvider(w http.ResponseWriter, r *http.Request) {
@@ -67,14 +76,24 @@ func (h *Handlers) UpdateProvider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initialize use case
 	updateProviderUseCase := updateprovider.NewUpdateProviderUseCase(providerRepo)
-
-	// Initialize controller
 	updateProviderController := updateprovider.NewUpdateProviderController(updateProviderUseCase)
 
-	// Handle the request
-	commonHandler(updateProviderController.UpdateProvider)(w, r)
+	var req updateprovider.UpdateProviderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	res, err := updateProviderController.UpdateProvider(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handlers) GetProvider(w http.ResponseWriter, r *http.Request) {
@@ -84,31 +103,51 @@ func (h *Handlers) GetProvider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initialize use case
 	getProviderUseCase := getprovider.NewGetProviderUseCase(providerRepo)
-
-	// Initialize controller
 	getProviderController := getprovider.NewGetProviderController(getProviderUseCase)
 
-	// Handle the request
-	commonHandler(getProviderController.GetProvider)(w, r)
+	var req getprovider.GetProviderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	res, err := getProviderController.GetProvider(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handlers) GetProviderByTenant(w http.ResponseWriter, r *http.Request) {
-	templateRepo, err := h.getProviderRepo(r)
+	providerRepo, err := h.getProviderRepo(r)
 	if err != nil {
 		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
 		return
 	}
 
-	// Initialize use case
-	getProvidersUseCase := getproviders.NewGetProvidersUseCase(templateRepo)
-
-	// Initialize controller
+	getProvidersUseCase := getproviders.NewGetProvidersUseCase(providerRepo)
 	getProvidersController := getproviders.NewGetProvidersController(getProvidersUseCase)
 
-	// Handle the request
-	commonHandler(getProvidersController.GetProviders)(w, r)
+	var req getproviders.GetProvidersRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	res, err := getProvidersController.GetProviders(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // NewRouter sets up the router with all routes
@@ -123,41 +162,4 @@ func NewRouter(dbManager *db.Manager) *chi.Mux {
 	r.Get("/{id}", h.GetProvider)
 
 	return r
-}
-
-// commonHandler is a generic HTTP handler function that handles requests and responses for different controllers.
-func commonHandler(handlerFunc interface{}) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-
-		// Decode the request body into the appropriate request type
-		var req interface{}
-		if r.Method != http.MethodGet && r.Method != http.MethodDelete {
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, "Invalid request body", http.StatusBadRequest)
-				return
-			}
-		}
-
-		// Call the handler function with the context and request
-		var res interface{}
-		switch h := handlerFunc.(type) {
-		case func(context.Context, getprovider.GetProviderRequest) getprovider.GetProviderResponse:
-			res = h(ctx, req.(getprovider.GetProviderRequest))
-		case func(context.Context, createprovider.CreateProviderRequest) createprovider.CreateProviderResponse:
-			res = h(ctx, req.(createprovider.CreateProviderRequest))
-		case func(context.Context, updateprovider.UpdateProviderRequest) updateprovider.UpdateProviderResponse:
-			res = h(ctx, req.(updateprovider.UpdateProviderRequest))
-		case func(context.Context, getproviders.GetProvidersRequest) getproviders.GetProvidersResponse:
-			res = h(ctx, req.(getproviders.GetProvidersRequest))
-		default:
-			http.Error(w, "Unsupported handler function", http.StatusInternalServerError)
-			return
-		}
-
-		// Encode the response and write it to the response writer
-		if err := json.NewEncoder(w).Encode(res); err != nil {
-			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		}
-	}
 }

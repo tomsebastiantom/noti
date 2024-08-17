@@ -12,6 +12,6 @@ func NewGetTemplateController(useCase GetTemplateUseCase) *GetTemplateController
     return &GetTemplateController{useCase: useCase}
 }
 
-func (c *GetTemplateController) GetTemplate(ctx context.Context, req GetTemplateRequest) GetTemplateResponse {
+func (c *GetTemplateController) GetTemplate(ctx context.Context, req GetTemplateRequest) (GetTemplateResponse,error) {
     return c.useCase.Execute(ctx, req)
 }

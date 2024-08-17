@@ -1,12 +1,11 @@
 package userroutes
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
+	"getnoti.com/internal/shared/middleware"
 	repository "getnoti.com/internal/tenants/repos"
- "getnoti.com/internal/shared/middleware"
 	"getnoti.com/internal/tenants/repos/implementations"
 	"getnoti.com/internal/tenants/usecases/create_user"
 	"getnoti.com/internal/tenants/usecases/get_users"
@@ -31,7 +30,6 @@ func NewHandlers(dbManager *db.Manager) *Handlers {
 func (h *Handlers) getUserRepo(r *http.Request) (repository.UserRepository, error) {
 	tenantID := r.Context().Value(middleware.TenantIDKey).(string)
 
-
 	// Retrieve the database connection
 	database, err := h.DBManager.GetDatabaseConnection(tenantID)
 	if err != nil {
@@ -50,14 +48,24 @@ func (h *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initialize use case
 	createUserUseCase := createuser.NewCreateUserUseCase(userRepo)
-
-	// Initialize controller
 	createUserController := createuser.NewCreateUserController(createUserUseCase)
 
-	// Handle the request
-	commonHandler(createUserController.CreateUser)(w, r)
+	var req createuser.CreateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	res, err := createUserController.CreateUser(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handlers) UpdateUser(w http.ResponseWriter, r *http.Request) {
@@ -67,14 +75,24 @@ func (h *Handlers) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initialize use case
 	updateUserUseCase := updateuser.NewUpdateUserUseCase(userRepo)
-
-	// Initialize controller
 	updateUserController := updateuser.NewUpdateUserController(updateUserUseCase)
 
-	// Handle the request
-	commonHandler(updateUserController.UpdateUser)(w, r)
+	var req updateuser.UpdateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	res, err := updateUserController.UpdateUser(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handlers) GetUser(w http.ResponseWriter, r *http.Request) {
@@ -84,14 +102,24 @@ func (h *Handlers) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initialize use case
 	getUsersUseCase := getusers.NewGetUsersUseCase(userRepo)
-
-	// Initialize controller
 	getUserController := getusers.NewGetUsersController(getUsersUseCase)
 
-	// Handle the request
-	commonHandler(getUserController.GetUsers)(w, r)
+	var req getusers.GetUsersRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	res, err := getUserController.GetUsers(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handlers) GetUsers(w http.ResponseWriter, r *http.Request) {
@@ -101,14 +129,18 @@ func (h *Handlers) GetUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initialize use case
 	getUsersUseCase := getusers.NewGetUsersUseCase(userRepo)
-
-	// Initialize controller
 	getUserController := getusers.NewGetUsersController(getUsersUseCase)
 
-	// Handle the request
-	commonHandler(getUserController.GetUsers)(w, r)
+	res, err := getUserController.GetUsers(r.Context(), getusers.GetUsersRequest{})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // NewRouter sets up the router with all routes
@@ -124,40 +156,3 @@ func NewRouter(dbManager *db.Manager) *chi.Mux {
 
 	return r
 }
-
-// CommonHandler is a generic HTTP handler function that handles requests and responses for different controllers.
-func commonHandler(handlerFunc interface{}) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-
-		// Decode the request body into the appropriate request type
-		var req interface{}
-		if r.Method != http.MethodGet && r.Method != http.MethodDelete {
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, "Invalid request body", http.StatusBadRequest)
-				return
-			}
-		}
-
-		// Call the handler function with the context and request
-		var res interface{}
-		switch h := handlerFunc.(type) {
-		case func(context.Context, createuser.CreateUserRequest) createuser.CreateUserResponse:
-			res = h(ctx, req.(createuser.CreateUserRequest))
-		case func(context.Context, updateuser.UpdateUserRequest) updateuser.UpdateUserResponse:
-			res = h(ctx, req.(updateuser.UpdateUserRequest))
-		case func(context.Context, getusers.GetUsersRequest) getusers.GetUsersResponse:
-			res = h(ctx, req.(getusers.GetUsersRequest))
-
-		default:
-			http.Error(w, "Unsupported handler function", http.StatusInternalServerError)
-			return
-		}
-
-		// Encode the response and write it to the response writer
-		if err := json.NewEncoder(w).Encode(res); err != nil {
-			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		}
-	}
-}
-

@@ -1,9 +1,7 @@
 package tenantroutes
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	tenantMiddleware "getnoti.com/internal/shared/middleware"
@@ -46,22 +44,30 @@ func (h *Handlers) getTenantRepo(r *http.Request) (repository.TenantRepository, 
 }
 
 func (h *Handlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
-
 	tenantRepo, err := h.getNewTenantRepo(r)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Initialize use case
 	createTenantUseCase := createtenant.NewCreateTenantUseCase(tenantRepo)
-
-	// Initialize controller
 	createTenantController := createtenant.NewCreateTenantController(createTenantUseCase)
 
-	// Handle the request
-	commonHandler(createTenantController.CreateTenant)(w, r)
+	var req createtenant.CreateTenantRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	res, err := createTenantController.CreateTenant(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handlers) UpdateTenant(w http.ResponseWriter, r *http.Request) {
@@ -71,14 +77,24 @@ func (h *Handlers) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initialize use case
 	updateTenantUseCase := updatetenant.NewUpdateTenantUseCase(tenantRepo)
-
-	// Initialize controller
 	updateTenantController := updatetenant.NewUpdateTenantController(updateTenantUseCase)
 
-	// Handle the request
-	commonHandler(updateTenantController.UpdateTenant)(w, r)
+	var req updatetenant.UpdateTenantRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	res, err := updateTenantController.UpdateTenant(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handlers) GetTenant(w http.ResponseWriter, r *http.Request) {
@@ -88,27 +104,41 @@ func (h *Handlers) GetTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initialize use case
 	getTenantUseCase := gettenant.NewGetTenantUseCase(tenantRepo)
-
-	// Initialize controller
 	getTenantController := gettenant.NewGetTenantController(getTenantUseCase)
 
-	// Handle the request
-	commonHandler(getTenantController.GetTenant)(w, r)
+	var req gettenant.GetTenantRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	res, err := getTenantController.GetTenant(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *Handlers) GetTenants(w http.ResponseWriter, r *http.Request) {
 	tenantRepo := repos.NewTenantsRepository(h.MainDB)
 
-	// Initialize use case
 	getTenantsUseCase := gettenants.NewGetTenantsUseCase(tenantRepo)
-
-	// Initialize controller
 	getTenantsController := gettenants.NewGetTenantsController(getTenantsUseCase)
-	// log.Printf("GetTenants handler type: %T", getTenantsController.GetTenants)
-	// Handle the request
-	commonHandler(getTenantsController.GetTenants)(w, r)
+
+	res, err := getTenantsController.GetTenants(r.Context(), gettenants.GetTenantsRequest{})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(res); err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // NewRouter sets up the router with all routes
@@ -118,82 +148,10 @@ func NewRouter(mainDB db.Database, dbManager *db.Manager) *chi.Mux {
 
 	// Set up routes
 	r.Post("/", h.CreateTenant)
-	r.Put("/", h.UpdateTenant)
+	r.With(tenantMiddleware.WithTenantID).Put("/", h.UpdateTenant)
 	r.With(tenantMiddleware.WithTenantID).Get("/me", h.GetTenant)
+	r.With(tenantMiddleware.WithTenantID).Get("/{id}", h.GetTenant)
 	r.Get("/", h.GetTenants)
 
 	return r
-}
-
-// CommonHandler is a generic HTTP handler function that handles requests and responses for different controllers.
-func commonHandler(handlerFunc interface{}) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-
-		// Decode the request body into a map[string]interface{}
-		var reqMap map[string]interface{}
-		if r.Method != http.MethodGet && r.Method != http.MethodDelete {
-			if err := json.NewDecoder(r.Body).Decode(&reqMap); err != nil {
-				http.Error(w, "Invalid request body", http.StatusBadRequest)
-				return
-			}
-		}
-
-		var res interface{}
-		var err error
-
-		switch h := handlerFunc.(type) {
-		case func(context.Context, createtenant.CreateTenantRequest) (createtenant.CreateTenantResponse, error):
-			var req createtenant.CreateTenantRequest
-			if err := decodeToStruct(reqMap, &req); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			res, err = h(ctx, req)
-
-		case func(context.Context, updatetenant.UpdateTenantRequest) (updatetenant.UpdateTenantResponse, error):
-			var req updatetenant.UpdateTenantRequest
-			if err := decodeToStruct(reqMap, &req); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			res, err = h(ctx, req)
-
-		case func(context.Context, gettenants.GetTenantsRequest) (gettenants.GetTenantsResponse, error):
-			res, err = h(ctx, gettenants.GetTenantsRequest{})
-
-		case func(context.Context, gettenant.GetTenantRequest) (gettenant.GetTenantRequest, error):
-			var req gettenant.GetTenantRequest
-			if err := decodeToStruct(reqMap, &req); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			res, err = h(ctx, req)
-
-		default:
-			http.Error(w, "Unsupported handler function", http.StatusInternalServerError)
-			return
-		}
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Encode the response and write it to the response writer
-		if err := json.NewEncoder(w).Encode(res); err != nil {
-			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		}
-	}
-}
-
-func decodeToStruct(input map[string]interface{}, output interface{}) error {
-	jsonData, err := json.Marshal(input)
-	if err != nil {
-		return fmt.Errorf("failed to marshal input: %v", err)
-	}
-	if err := json.Unmarshal(jsonData, output); err != nil {
-		return fmt.Errorf("invalid request structure: %v", err)
-	}
-	return nil
 }

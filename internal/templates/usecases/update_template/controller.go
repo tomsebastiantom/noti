@@ -12,6 +12,6 @@ func NewUpdateTemplateController(useCase UpdateTemplateUseCase) *UpdateTemplateC
     return &UpdateTemplateController{useCase: useCase}
 }
 
-func (c *UpdateTemplateController) UpdateTemplate(ctx context.Context, req UpdateTemplateRequest) UpdateTemplateResponse {
+func (c *UpdateTemplateController) UpdateTemplate(ctx context.Context, req UpdateTemplateRequest) (UpdateTemplateResponse,error) {
     return c.useCase.Execute(ctx, req)
 }

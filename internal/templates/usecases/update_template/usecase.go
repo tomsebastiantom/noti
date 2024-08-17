@@ -9,7 +9,7 @@ import (
 )
 
 type UpdateTemplateUseCase interface {
-    Execute(ctx context.Context, req UpdateTemplateRequest) UpdateTemplateResponse
+    Execute(ctx context.Context, req UpdateTemplateRequest) (UpdateTemplateResponse,error)
 }
 
 type updateTemplateUseCase struct {
@@ -20,14 +20,14 @@ func NewUpdateTemplateUseCase(repository repos.TemplateRepository) UpdateTemplat
     return &updateTemplateUseCase{repository: repository}
 }
 
-func (uc *updateTemplateUseCase) Execute(ctx context.Context, req UpdateTemplateRequest) UpdateTemplateResponse {
+func (uc *updateTemplateUseCase) Execute(ctx context.Context, req UpdateTemplateRequest) (UpdateTemplateResponse,error) {
     // Check if the template exists
     existingTemplate, err := uc.repository.GetTemplateByID(ctx, req.TemplateID)
     if err != nil {
         if errors.Is(err, postgres.ErrTemplateNotFound) {
-            return UpdateTemplateResponse{Success: false, Message: ErrTemplateNotFound.Error()}
+            return UpdateTemplateResponse{Success: false, Message: ErrTemplateNotFound.Error()},err
         }
-        return UpdateTemplateResponse{Success: false, Message: ErrUnexpected.Error()}
+        return UpdateTemplateResponse{Success: false, Message: ErrUnexpected.Error()},err
     }
 
     // Update the template with provided fields, retain existing values for fields not provided
@@ -50,12 +50,12 @@ func (uc *updateTemplateUseCase) Execute(ctx context.Context, req UpdateTemplate
 
     err = uc.repository.UpdateTemplate(ctx, existingTemplate)
     if err != nil {
-        return UpdateTemplateResponse{Success: false, Message: ErrTemplateUpdateFailed.Error()}
+        return UpdateTemplateResponse{Success: false, Message: ErrTemplateUpdateFailed.Error()},err
     }
 
     return UpdateTemplateResponse{
         Template: *existingTemplate,
         Success:  true,
         Message:  "Template updated successfully",
-    }
+    },nil
 }
