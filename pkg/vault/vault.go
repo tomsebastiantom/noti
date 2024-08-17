@@ -3,7 +3,8 @@ package vault
 import (
 	"fmt"
 	"sync"
-	"time"
+
+	// "time"
 
 	"github.com/hashicorp/vault/api"
 )
@@ -18,6 +19,10 @@ var (
 type VaultConfig struct {
 	Address string
 	Token   string
+}
+type TokenRequest struct {
+	Type     string // "admin" or "tenant"
+	TenantID string // Optional for admin tokens
 }
 
 type CredentialType string
@@ -35,42 +40,75 @@ type Credential struct {
 }
 
 func Initialize(cfg *VaultConfig) error {
-    var err error
-    once.Do(func() {
-        fmt.Println("Initializing Vault...")
+	var err error
+	once.Do(func() {
+		fmt.Println("Initializing Vault...")
 
-        if cfg == nil {
-            err = fmt.Errorf("vault configuration is nil")
-            fmt.Println("Error: Vault configuration is nil")
-            return
-        }
+		if cfg == nil {
+			err = fmt.Errorf("vault configuration is nil")
+			fmt.Println("Error: Vault configuration is nil")
+			return
+		}
 
-        fmt.Printf("Vault Address: %s, Token: %s\n", cfg.Address, cfg.Token)
+		//fmt.Printf("Vault Address: %s, Token: %s\n", cfg.Address, cfg.Token)
 
-        // Initialize the config variable
-        config = &VaultConfig{
-            Address: cfg.Address,
-            Token:   cfg.Token,
-        }
+		// Initialize the config variable
+		config = &VaultConfig{
+			Address: cfg.Address,
+			Token:   cfg.Token,
+		}
 
-        fmt.Println("Creating Vault client...")
-        vaultConfig := api.DefaultConfig()
-        vaultConfig.Address = config.Address
-        client, err = api.NewClient(vaultConfig)
-        if err != nil {
-            err = fmt.Errorf("failed to create Vault client: %v", err)
-            fmt.Printf("Error creating Vault client: %v\n", err)
-            return
-        }
+		fmt.Println("Creating Vault client...")
+		vaultConfig := api.DefaultConfig()
+		vaultConfig.Address = config.Address
+		client, err = api.NewClient(vaultConfig)
+		if err != nil {
+			err = fmt.Errorf("failed to create Vault client: %v", err)
+			fmt.Printf("Error creating Vault client: %v\n", err)
+			return
+		}
 
-        fmt.Println("Setting Vault token...")
-        client.SetToken(config.Token)
+		//Long Lived admin token used
+		client.SetToken(config.Token)
 
-        fmt.Println("Vault initialization completed successfully")
-    })
-    return err
+		fmt.Println("Vault initialization completed successfully")
+	})
+	return err
 }
 
+func generateToken(req TokenRequest) (string, error) {
+	var policies []string
+	var ttl string
+
+	switch req.Type {
+	case "admin":
+		policies = []string{"admin-policy"}
+		ttl = "768h"
+	case "tenant":
+		if req.TenantID == "" {
+			return "", fmt.Errorf("tenant ID is required for tenant token")
+		}
+		policyName := fmt.Sprintf("%s-policy", req.TenantID)
+		policies = []string{policyName}
+		ttl = "1h"
+	default:
+		return "", fmt.Errorf("unknown token type: %s", req.Type)
+	}
+
+	tokenRequest := &api.TokenCreateRequest{
+		Policies:  policies,
+		TTL:       ttl,
+		Renewable: func(b bool) *bool { return &b }(true),
+	}
+
+	secret, err := client.Auth().Token().CreateOrphan(tokenRequest)
+	if err != nil {
+		return "", fmt.Errorf("failed to create %s token: %v", req.Type, err)
+	}
+
+	fmt.Printf("Created %s token: %s\n", req.Type, secret.Auth.ClientToken)
+	return secret.Auth.ClientToken, nil
+}
 func ensureKVEngineMounted(client *api.Client, mountPath string) error {
 	mounts, err := client.Sys().ListMounts()
 	if err != nil {
@@ -96,65 +134,33 @@ func ensureKVEngineMounted(client *api.Client, mountPath string) error {
 	return nil
 }
 
-
-func refreshToken(tenantID string) error {
-    mutex.Lock()
-    defer mutex.Unlock()
-
-    secret, err := client.Auth().Token().LookupSelf()
-    if err != nil {
-        return fmt.Errorf("failed to lookup token: %v", err)
-    }
-
-    // Check if the token has an expiration time
-    expireTime, ok := secret.Data["expire_time"].(string)
-    if !ok {
-        // If there's no expiration time, assume it's a root token or a token without expiry
-       // log.Println("Token does not have an expiration time, assuming it is a root token or a token without expiry.")
-        return nil
-    }
-
-    expireTimeParsed, err := time.Parse(time.RFC3339, expireTime)
-    if err != nil {
-        return fmt.Errorf("failed to parse token expiration time: %v", err)
-    }
-
-    // Refresh the token if it will expire in less than 10 minutes
-    if time.Until(expireTimeParsed) < 10*time.Minute {
-        newToken, err := createTenantToken(tenantID)
-        if err != nil {
-            return fmt.Errorf("failed to refresh token: %v", err)
-        }
-
-        client.SetToken(newToken)
-        
-    } 
-
-    return nil
-}
-
-func createTenantToken(tenantID string) (string, error) {
-	policyName := fmt.Sprintf("%s-policy", tenantID)
-	tokenRequest := &api.TokenCreateRequest{
-		Policies: []string{policyName},
-		TTL:      "1h",
-	}
-
-	secret, err := client.Auth().Token().Create(tokenRequest)
+func updateTenantToken(tenantID string) error {
+	newToken, err := generateToken(TokenRequest{Type: "tenant", TenantID: tenantID})
 	if err != nil {
-		return "", fmt.Errorf("failed to create tenant token: %v", err)
+		return fmt.Errorf("failed to update tenant token: %v", err)
 	}
 
-	return secret.Auth.ClientToken, nil
+	client.SetToken(newToken)
+	return nil
 }
 
 func CreateCredential(tenantID string, credType CredentialType, name string, data map[string]interface{}) error {
+     //Setting admin token 
+    client.SetToken(config.Token)
+
+
 	err := ensureTenantPolicy(tenantID)
 	if err != nil {
 		return err
 	}
 
-	err = refreshToken(tenantID)
+	// Ensure the KV secrets engine is mounted
+	err = ensureKVEngineMounted(client, "secret/")
+	if err != nil {
+		return err
+	}
+
+	err = updateTenantToken(tenantID)
 	if err != nil {
 		return err
 	}
@@ -163,12 +169,6 @@ func CreateCredential(tenantID string, credType CredentialType, name string, dat
 	defer mutex.Unlock()
 
 	secretPath := buildSecretPath(tenantID, credType, name)
-
-	// Ensure the KV secrets engine is mounted
-	err = ensureKVEngineMounted(client, "secret/")
-	if err != nil {
-		return err
-	}
 
 	_, err = client.Logical().Write(secretPath, map[string]interface{}{
 		"data": data,
@@ -180,10 +180,8 @@ func CreateCredential(tenantID string, credType CredentialType, name string, dat
 	return nil
 }
 
-
-
 func GetClientCredentials(tenantID string, credType CredentialType, name string) (map[string]interface{}, error) {
-	err := refreshToken(tenantID)
+	err := updateTenantToken(tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -243,12 +241,13 @@ func ParseCredentials(rawCredentials map[string]interface{}, credType Credential
 }
 
 func UpdateCredential(tenantID string, credType CredentialType, name string, data map[string]interface{}) error {
-	err := ensureTenantPolicy(tenantID)
+
+	err := updateTenantToken(tenantID)
 	if err != nil {
 		return err
 	}
 
-	err = refreshToken(tenantID)
+	err = ensureTenantPolicy(tenantID)
 	if err != nil {
 		return err
 	}

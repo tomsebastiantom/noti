@@ -55,5 +55,8 @@ func (uc *createTenantUseCase) Execute(ctx context.Context, req CreateTenantRequ
         return CreateTenantResponse{}, err
     }
 
-    return CreateTenantResponse{Tenant: *tenant}, nil
+    return CreateTenantResponse{
+        ID:   tenant.ID,
+        Name: tenant.Name,
+    }, nil
 }

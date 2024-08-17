@@ -18,4 +18,5 @@ queue:
 
 vault:
   address: "http://127.0.0.1:8205"
-  token: "hvs.CAESIHakNNro6dReSL91MCHjp9xfx-nAs4d-U27A6jeEKSS2Gh4KHGh2cy4ybk1kclN1amtROElTZFRPSUV3RkxqQjM"
+  #token: "hvs.CAESIER-LYOx6RcdWJETlXBx94iqUA9ZwalaQBMfXII_MyPbGh4KHGh2cy41Q1kwVU04UHVMQWlyU3R0WW44TWRkYmE"
+  token: "hvs.L5tharyDDPICe6rh9W0gxIj3"

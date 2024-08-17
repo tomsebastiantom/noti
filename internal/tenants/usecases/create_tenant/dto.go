@@ -11,5 +11,6 @@ type CreateTenantRequest struct {
 
 
 type CreateTenantResponse struct {
-    Tenant domain.Tenant
+    ID             string
+    Name           string
 }
