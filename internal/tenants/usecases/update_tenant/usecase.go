@@ -31,20 +31,23 @@ func (uc *updateTenantUseCase) Execute(ctx context.Context, req UpdateTenantRequ
 	tenant.Name = req.Name
 
 	// Update DB configurations
-	if req.DBConfigs != nil {
-		dbCreds, err := domain.NewDBCredentials(
-			req.DBConfigs.Type,
-			req.DBConfigs.DSN,
-			req.DBConfigs.Host,
-			req.DBConfigs.Port,
-			req.DBConfigs.Username,
-			req.DBConfigs.Password,
-			req.DBConfigs.DBName,
-		)
-		if err != nil {
-			return UpdateTenantResponse{Success: false}, err
+	if req.DBConfig != nil {
+		// Get the current DB credentials
+		currentDBCreds := tenant.DBConfig
+
+		// Update only the fields provided in the request
+		updatedDBCreds := domain.DBCredentials{
+			Type:     ifNotEmpty(req.DBConfig.Type, currentDBCreds.Type),
+			DSN:      ifNotEmpty(req.DBConfig.DSN, currentDBCreds.DSN),
+			Host:     ifNotEmpty(req.DBConfig.Host, currentDBCreds.Host),
+			Port:     ifNotZero(req.DBConfig.Port, currentDBCreds.Port),
+			Username: ifNotEmpty(req.DBConfig.Username, currentDBCreds.Username),
+			Password: ifNotEmpty(req.DBConfig.Password, currentDBCreds.Password),
+			DBName:   ifNotEmpty(req.DBConfig.DBName, currentDBCreds.DBName),
 		}
-		tenant.SetDBConfig(dbCreds)
+
+		// Set the updated DB config
+		tenant.SetDBConfig(&updatedDBCreds)
 	}
 
 	// Validate the updated tenant
@@ -56,5 +59,22 @@ func (uc *updateTenantUseCase) Execute(ctx context.Context, req UpdateTenantRequ
 		return UpdateTenantResponse{Success: false}, err
 	}
 
-	return UpdateTenantResponse{Success: true, Tenant: tenant}, nil
+	return UpdateTenantResponse{Success: true,
+		ID:   tenant.ID,
+		Name: tenant.Name,
+	}, nil
+}
+
+func ifNotEmpty(new, current string) string {
+	if new != "" {
+		return new
+	}
+	return current
+}
+
+func ifNotZero(new, current int) int {
+	if new != 0 {
+		return new
+	}
+	return current
 }

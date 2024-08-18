@@ -16,7 +16,7 @@ import (
 	"net/http"
 )
 
-func (h *Handlers) getNewTenantRepo(r *http.Request) (repository.TenantRepository, error) {
+func (h *Handlers) createTenantRepo(r *http.Request) (repository.TenantRepository, error) {
     // Read the body content
     bodyContent, err := io.ReadAll(r.Body)
     if err != nil {

@@ -11,6 +11,7 @@ import (
 	"getnoti.com/pkg/workerpool"
 )
 
+
 type Message struct {
 	Body []byte
 }

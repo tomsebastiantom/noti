@@ -39,6 +39,10 @@ type Credential struct {
 	ExtraParams map[string]interface{} `json:"extra_params,omitempty"`
 }
 
+//ToDo make it thread safe and make it clone client
+//and also cache stuff maybe not as database client
+//is cached but we need clear cache if updated
+
 func Initialize(cfg *VaultConfig) error {
 	var err error
 	once.Do(func() {
@@ -101,7 +105,7 @@ func generateToken(req TokenRequest) (string, error) {
 		Renewable: func(b bool) *bool { return &b }(true),
 	}
 
-	secret, err := client.Auth().Token().CreateOrphan(tokenRequest)
+	secret, err := client.Auth().Token().Create(tokenRequest)
 	if err != nil {
 		return "", fmt.Errorf("failed to create %s token: %v", req.Type, err)
 	}
@@ -145,9 +149,8 @@ func updateTenantToken(tenantID string) error {
 }
 
 func CreateCredential(tenantID string, credType CredentialType, name string, data map[string]interface{}) error {
-     //Setting admin token 
-    client.SetToken(config.Token)
-
+	//Setting admin token
+	client.SetToken(config.Token)
 
 	err := ensureTenantPolicy(tenantID)
 	if err != nil {
@@ -181,6 +184,10 @@ func CreateCredential(tenantID string, credType CredentialType, name string, dat
 }
 
 func GetClientCredentials(tenantID string, credType CredentialType, name string) (map[string]interface{}, error) {
+
+	//Setting admin token
+	client.SetToken(config.Token)
+
 	err := updateTenantToken(tenantID)
 	if err != nil {
 		return nil, err
@@ -242,12 +249,10 @@ func ParseCredentials(rawCredentials map[string]interface{}, credType Credential
 
 func UpdateCredential(tenantID string, credType CredentialType, name string, data map[string]interface{}) error {
 
-	err := updateTenantToken(tenantID)
-	if err != nil {
-		return err
-	}
+    //Setting admin token
+	client.SetToken(config.Token)
 
-	err = ensureTenantPolicy(tenantID)
+	err := updateTenantToken(tenantID)
 	if err != nil {
 		return err
 	}

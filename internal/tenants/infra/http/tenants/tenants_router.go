@@ -2,6 +2,7 @@ package tenantroutes
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	tenantMiddleware "getnoti.com/internal/shared/middleware"
@@ -43,10 +44,20 @@ func (h *Handlers) getTenantRepo(r *http.Request) (repository.TenantRepository, 
 	return tenantRepo, nil
 }
 
+// decodeJSONBody is a helper function to decode JSON request bodies
+func decodeJSONBody(w http.ResponseWriter, r *http.Request, dst interface{}) bool {
+	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
+// CreateTenant handles the creation of a new tenant
 func (h *Handlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
-	tenantRepo, err := h.getNewTenantRepo(r)
+	tenantRepo, err := h.createTenantRepo(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(w, "Failed to get tenant repository", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -54,26 +65,24 @@ func (h *Handlers) CreateTenant(w http.ResponseWriter, r *http.Request) {
 	createTenantController := createtenant.NewCreateTenantController(createTenantUseCase)
 
 	var req createtenant.CreateTenantRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !decodeJSONBody(w, r, &req) {
 		return
 	}
 
 	res, err := createTenantController.CreateTenant(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(w, "Failed to create tenant", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	respondWithJSON(w, res)
 }
 
+// UpdateTenant handles the updating of an existing tenant
 func (h *Handlers) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 	tenantRepo, err := h.getTenantRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		handleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -81,49 +90,47 @@ func (h *Handlers) UpdateTenant(w http.ResponseWriter, r *http.Request) {
 	updateTenantController := updatetenant.NewUpdateTenantController(updateTenantUseCase)
 
 	var req updatetenant.UpdateTenantRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !decodeJSONBody(w, r, &req) {
 		return
 	}
 
 	res, err := updateTenantController.UpdateTenant(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(w, "Failed to update tenant", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	respondWithJSON(w, res)
 }
 
+// GetTenant retrieves a tenant by ID
 func (h *Handlers) GetTenant(w http.ResponseWriter, r *http.Request) {
 	tenantRepo, err := h.getTenantRepo(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(w, "Failed to get tenant repository", err, http.StatusInternalServerError)
 		return
 	}
 
 	getTenantUseCase := gettenant.NewGetTenantUseCase(tenantRepo)
 	getTenantController := gettenant.NewGetTenantController(getTenantUseCase)
-
-	var req gettenant.GetTenantRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	id, err := h.getTenantIDFromReq(r)
+	if err != nil {
+		handleError(w, "Failed to get tenant ID", err, http.StatusBadRequest)
 		return
 	}
+
+	req := gettenant.GetTenantRequest{TenantID: id}
 
 	res, err := getTenantController.GetTenant(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(w, "Failed to get tenant", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	respondWithJSON(w, res)
 }
 
+// GetTenants retrieves all tenants
 func (h *Handlers) GetTenants(w http.ResponseWriter, r *http.Request) {
 	tenantRepo := repos.NewTenantsRepository(h.MainDB)
 
@@ -132,13 +139,39 @@ func (h *Handlers) GetTenants(w http.ResponseWriter, r *http.Request) {
 
 	res, err := getTenantsController.GetTenants(r.Context(), gettenants.GetTenantsRequest{})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(w, "Failed to get tenants", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
+	respondWithJSON(w, res)
+}
+
+// handleError is a helper function to handle errors and send HTTP responses
+func handleError(w http.ResponseWriter, message string, err error, statusCode int) {
+	http.Error(w, message, statusCode)
+	// Log the error here if needed
+}
+
+// respondWithJSON is a helper function to send JSON responses
+func respondWithJSON(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(data); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
+}
+
+// getTenantIDFromReq is a helper to get tenantId
+func (h *Handlers) getTenantIDFromReq(r *http.Request) (string, error) {
+	id := chi.URLParam(r, "id")
+	if id != "" {
+		return id, nil
+	}
+
+	tenantID, ok := r.Context().Value(tenantMiddleware.TenantIDKey).(string)
+	if !ok {
+		return "", fmt.Errorf("tenant ID not found in context")
+	}
+	return tenantID, nil
 }
 
 // NewRouter sets up the router with all routes

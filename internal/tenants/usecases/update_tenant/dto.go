@@ -7,11 +7,11 @@ import (
 type UpdateTenantRequest struct {
 	ID string
 	Name           string
-	DBConfigs *domain.DBCredentials
+	DBConfig *domain.DBCredentials
 }
 
 type UpdateTenantResponse struct {
 	Success bool
-	Tenant  domain.Tenant
-	Error   string
+		ID string
+	Name           string
 }
