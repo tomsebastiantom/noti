@@ -1,29 +1,27 @@
 package userroutes
 
 import (
-	"encoding/json"
 	"net/http"
 
+	"getnoti.com/internal/shared/handler"
 	"getnoti.com/internal/shared/middleware"
 	"getnoti.com/internal/shared/utils"
 	repository "getnoti.com/internal/tenants/repos"
-	"getnoti.com/internal/tenants/repos/implementations"
-	"getnoti.com/internal/tenants/usecases/create_user"
-	"getnoti.com/internal/tenants/usecases/get_users"
-	"getnoti.com/internal/tenants/usecases/update_user"
+	repos "getnoti.com/internal/tenants/repos/implementations"
+	createuser "getnoti.com/internal/tenants/usecases/create_user"
+	getusers "getnoti.com/internal/tenants/usecases/get_users"
+	updateuser "getnoti.com/internal/tenants/usecases/update_user"
 	"getnoti.com/pkg/db"
 	"github.com/go-chi/chi/v5"
 )
 
-// Handlers struct to hold all the handlers
 type Handlers struct {
-	DBManager *db.Manager
+	BaseHandler *handler.BaseHandler
 }
 
-// NewHandlers initializes the Handlers struct with the DBManager
-func NewHandlers(dbManager *db.Manager) *Handlers {
+func NewHandlers(baseHandler *handler.BaseHandler) *Handlers {
 	return &Handlers{
-		DBManager: dbManager,
+		BaseHandler: baseHandler,
 	}
 }
 
@@ -32,7 +30,7 @@ func (h *Handlers) getUserRepo(r *http.Request) (repository.UserRepository, erro
 	tenantID := r.Context().Value(middleware.TenantIDKey).(string)
 
 	// Retrieve the database connection
-	database, err := h.DBManager.GetDatabaseConnection(tenantID)
+	database, err := h.BaseHandler.DBManager.GetDatabaseConnection(tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +43,7 @@ func (h *Handlers) getUserRepo(r *http.Request) (repository.UserRepository, erro
 func (h *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
 	userRepo, err := h.getUserRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -53,32 +51,28 @@ func (h *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
 	createUserController := createuser.NewCreateUserController(createUserUseCase)
 
 	var req createuser.CreateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
 		return
 	}
 
-	// Add tenant ID to the request if not present
 	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
-		http.Error(w, "Failed to process tenant ID", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	res, err := createUserController.CreateUser(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to create user", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
 func (h *Handlers) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	userRepo, err := h.getUserRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -86,32 +80,28 @@ func (h *Handlers) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	updateUserController := updateuser.NewUpdateUserController(updateUserUseCase)
 
 	var req updateuser.UpdateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
 		return
 	}
 
-	// Add tenant ID to the request if not present
 	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
-		http.Error(w, "Failed to process tenant ID", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	res, err := updateUserController.UpdateUser(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to update user", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
 func (h *Handlers) GetUser(w http.ResponseWriter, r *http.Request) {
 	userRepo, err := h.getUserRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -119,32 +109,28 @@ func (h *Handlers) GetUser(w http.ResponseWriter, r *http.Request) {
 	getUserController := getusers.NewGetUsersController(getUsersUseCase)
 
 	var req getusers.GetUsersRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
 		return
 	}
 
-	// Add tenant ID to the request if not present
 	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
-		http.Error(w, "Failed to process tenant ID", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	res, err := getUserController.GetUsers(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to get user", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
 func (h *Handlers) GetUsers(w http.ResponseWriter, r *http.Request) {
 	userRepo, err := h.getUserRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -153,26 +139,24 @@ func (h *Handlers) GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	req := getusers.GetUsersRequest{}
 
-	// Add tenant ID to the request if not present
 	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
-		http.Error(w, "Failed to process tenant ID", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	res, err := getUserController.GetUsers(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to get users", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
-// NewRouter sets up the router with all routes
 func NewRouter(dbManager *db.Manager) *chi.Mux {
-	h := NewHandlers(dbManager)
+	b := handler.NewBaseHandler(dbManager)
+	h := NewHandlers(b)
+
 	r := chi.NewRouter()
 
 	// Set up routes

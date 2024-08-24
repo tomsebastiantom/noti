@@ -1,10 +1,11 @@
 package templateroutes
 
 import (
-	"encoding/json"
 	"net/http"
 
-	custom "getnoti.com/internal/shared/middleware"
+	"getnoti.com/internal/shared/handler"
+	"getnoti.com/internal/shared/middleware"
+	"getnoti.com/internal/shared/utils"
 	repository "getnoti.com/internal/templates/repos"
 	"getnoti.com/internal/templates/repos/implementations"
 	"getnoti.com/internal/templates/usecases/create_template"
@@ -15,24 +16,22 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// Handlers struct to hold all the handlers
 type Handlers struct {
-	DBManager *db.Manager
+	BaseHandler *handler.BaseHandler
 }
 
-// NewHandlers initializes the Handlers struct with the DBManager
-func NewHandlers(dbManager *db.Manager) *Handlers {
+func NewHandlers(baseHandler *handler.BaseHandler) *Handlers {
 	return &Handlers{
-		DBManager: dbManager,
+		BaseHandler: baseHandler,
 	}
 }
 
 // Helper function to retrieve tenant ID and database connection
 func (h *Handlers) getTemplateRepo(r *http.Request) (repository.TemplateRepository, error) {
-	tenantID := r.Context().Value(custom.TenantIDKey).(string)
+	tenantID := r.Context().Value(middleware.TenantIDKey).(string)
 
 	// Retrieve the database connection
-	database, err := h.DBManager.GetDatabaseConnection(tenantID)
+	database, err := h.BaseHandler.DBManager.GetDatabaseConnection(tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +44,7 @@ func (h *Handlers) getTemplateRepo(r *http.Request) (repository.TemplateReposito
 func (h *Handlers) CreateTemplate(w http.ResponseWriter, r *http.Request) {
 	templateRepo, err := h.getTemplateRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -53,26 +52,28 @@ func (h *Handlers) CreateTemplate(w http.ResponseWriter, r *http.Request) {
 	createTemplateController := createtemplate.NewCreateTemplateController(createTemplateUseCase)
 
 	var req createtemplate.CreateTemplateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
+		return
+	}
+
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	res, err := createTemplateController.CreateTemplate(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to create template", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
 func (h *Handlers) UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	templateRepo, err := h.getTemplateRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -80,26 +81,28 @@ func (h *Handlers) UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	updateTemplateController := updatetemplate.NewUpdateTemplateController(updateTemplateUseCase)
 
 	var req updatetemplate.UpdateTemplateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
+		return
+	}
+
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	res, err := updateTemplateController.UpdateTemplate(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to update template", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
 func (h *Handlers) GetTemplate(w http.ResponseWriter, r *http.Request) {
 	templateRepo, err := h.getTemplateRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -107,26 +110,28 @@ func (h *Handlers) GetTemplate(w http.ResponseWriter, r *http.Request) {
 	getTemplateController := gettemplate.NewGetTemplateController(getTemplateUseCase)
 
 	var req gettemplate.GetTemplateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
+		return
+	}
+
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	res, err := getTemplateController.GetTemplate(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to get template", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
 func (h *Handlers) GetTemplatesByTenant(w http.ResponseWriter, r *http.Request) {
 	templateRepo, err := h.getTemplateRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -134,25 +139,28 @@ func (h *Handlers) GetTemplatesByTenant(w http.ResponseWriter, r *http.Request) 
 	getTemplateByTenantController := gettemplates.NewGetTemplatesByTenantController(getTemplatesByTenantUseCase)
 
 	var req gettemplates.GetTemplatesByTenantRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
+		return
+	}
+
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	res, err := getTemplateByTenantController.GetTemplatesByTenant(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to get templates by tenant", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
 // NewRouter sets up the router with all routes
 func NewRouter(dbManager *db.Manager) *chi.Mux {
-	h := NewHandlers(dbManager)
+	b := handler.NewBaseHandler(dbManager)
+	h := NewHandlers(b)
 	r := chi.NewRouter()
 
 	// Set up routes

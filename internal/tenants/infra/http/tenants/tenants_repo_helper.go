@@ -45,7 +45,7 @@ func (h *Handlers) createTenantRepo(r *http.Request) (repository.TenantRepositor
         return nil, fmt.Errorf("failed to update request body: %w", err)
     }
 
-    tenantRepo := repos.NewTenantRepository(h.BaseHandler.MainDB, database)
+    tenantRepo := repos.NewTenantRepository(h.mainDB, database)
     return tenantRepo, nil
 }
 

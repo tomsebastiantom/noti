@@ -1,7 +1,6 @@
 package notificationroutes
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"getnoti.com/internal/notifications/repos/implementations"
@@ -9,7 +8,9 @@ import (
 	"getnoti.com/internal/providers/infra/providers"
 	providerrepos "getnoti.com/internal/providers/repos/implementations"
 	providerService "getnoti.com/internal/providers/services"
+	"getnoti.com/internal/shared/handler"
 	"getnoti.com/internal/shared/middleware"
+	"getnoti.com/internal/shared/utils"
 	templatesrepo "getnoti.com/internal/templates/repos/implementations"
 	templates "getnoti.com/internal/templates/services"
 	"getnoti.com/pkg/cache"
@@ -20,18 +21,18 @@ import (
 )
 
 type Handlers struct {
-	DBManager         *db.Manager
+	BaseHandler       *handler.BaseHandler
 	GenericCache      *cache.GenericCache
-	queueManager      *queue.QueueManager
-	workerPoolManager *workerpool.WorkerPoolManager
+	QueueManager      *queue.QueueManager
+	WorkerPoolManager *workerpool.WorkerPoolManager
 }
 
-func NewHandlers(dbManager *db.Manager, genericCache *cache.GenericCache, queueManager *queue.QueueManager, wpm *workerpool.WorkerPoolManager) *Handlers {
+func NewHandlers(baseHandler *handler.BaseHandler, genericCache *cache.GenericCache, queueManager *queue.QueueManager, wpm *workerpool.WorkerPoolManager) *Handlers {
 	return &Handlers{
-		DBManager:         dbManager,
+		BaseHandler:       baseHandler,
 		GenericCache:      genericCache,
-		queueManager:      queueManager,
-		workerPoolManager: wpm,
+		QueueManager:      queueManager,
+		WorkerPoolManager: wpm,
 	}
 }
 
@@ -39,15 +40,15 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value(middleware.TenantIDKey).(string)
 
 	// Retrieve the database connection
-	database, err := h.DBManager.GetDatabaseConnection(tenantID)
+	database, err := h.BaseHandler.DBManager.GetDatabaseConnection(tenantID)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
-	notificationQueue, err := h.queueManager.GetOrCreateQueue(tenantID)
+	notificationQueue, err := h.QueueManager.GetOrCreateQueue(tenantID)
 	if err != nil {
-		http.Error(w, "Failed to retrieve or create notification queue", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve or create notification queue", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -58,7 +59,7 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 
 	// Initialize services
 	providerFactory := providers.NewProviderFactory(h.GenericCache, providerRepo)
-	providerService := providerService.NewProviderService(providerFactory, notificationQueue, h.workerPoolManager)
+	providerService := providerService.NewProviderService(providerFactory, notificationQueue, h.WorkerPoolManager)
 	templateService := templates.NewTemplateService(templatesRepo)
 
 	// Initialize use case
@@ -69,35 +70,36 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 
 	// Decode the request body
 	var req sendnotification.SendNotificationRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
+		return
+	}
+
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	// Execute the controller method
 	res, err := sendNotificationController.SendNotification(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to send notification", err, http.StatusInternalServerError)
 		return
 	}
 
-	// Encode the response
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
 func NewRouter(dbManager *db.Manager, providerCache *cache.GenericCache, queueManager *queue.QueueManager, wpm *workerpool.WorkerPoolManager) *chi.Mux {
+	b := handler.NewBaseHandler(dbManager)
+	h := NewHandlers(b, providerCache, queueManager, wpm)
+
 	r := chi.NewRouter()
 
-	// Initialize handlers
-	handlers := NewHandlers(dbManager, providerCache, queueManager, wpm)
-
 	// Set up routes
-	r.Post("/", handlers.SendNotification)
+	r.Post("/", h.SendNotification)
 
 	// Add more routes here
-	// r.Get("/another-route", handlers.AnotherHandler)
+	// r.Get("/another-route", h.AnotherHandler)
 
 	return r
 }

@@ -1,7 +1,6 @@
 package providerroutes
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"getnoti.com/internal/providers/repos"
@@ -10,29 +9,29 @@ import (
 	"getnoti.com/internal/providers/usecases/get_provider"
 	"getnoti.com/internal/providers/usecases/get_providers"
 	"getnoti.com/internal/providers/usecases/update_provider"
-	custom "getnoti.com/internal/shared/middleware"
+	"getnoti.com/internal/shared/handler"
+	"getnoti.com/internal/shared/middleware"
+	"getnoti.com/internal/shared/utils"
 	"getnoti.com/pkg/db"
 	"github.com/go-chi/chi/v5"
 )
 
-// Handlers struct to hold all the handlers
 type Handlers struct {
-	DBManager *db.Manager
+	BaseHandler *handler.BaseHandler
 }
 
-// NewHandlers initializes the Handlers struct with the DBManager
-func NewHandlers(dbManager *db.Manager) *Handlers {
+func NewHandlers(baseHandler *handler.BaseHandler) *Handlers {
 	return &Handlers{
-		DBManager: dbManager,
+		BaseHandler: baseHandler,
 	}
 }
 
 // Helper function to retrieve tenant ID and database connection
 func (h *Handlers) getProviderRepo(r *http.Request) (repos.ProviderRepository, error) {
-	tenantID := r.Context().Value(custom.TenantIDKey).(string)
+	tenantID := r.Context().Value(middleware.TenantIDKey).(string)
 
 	// Retrieve the database connection
-	database, err := h.DBManager.GetDatabaseConnection(tenantID)
+	database, err := h.BaseHandler.DBManager.GetDatabaseConnection(tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +44,7 @@ func (h *Handlers) getProviderRepo(r *http.Request) (repos.ProviderRepository, e
 func (h *Handlers) CreateProvider(w http.ResponseWriter, r *http.Request) {
 	providerRepo, err := h.getProviderRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -53,26 +52,28 @@ func (h *Handlers) CreateProvider(w http.ResponseWriter, r *http.Request) {
 	createProviderController := createprovider.NewCreateProviderController(createProviderUseCase)
 
 	var req createprovider.CreateProviderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
+		return
+	}
+
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	res, err := createProviderController.CreateProvider(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to create provider", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
 func (h *Handlers) UpdateProvider(w http.ResponseWriter, r *http.Request) {
 	providerRepo, err := h.getProviderRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -80,26 +81,28 @@ func (h *Handlers) UpdateProvider(w http.ResponseWriter, r *http.Request) {
 	updateProviderController := updateprovider.NewUpdateProviderController(updateProviderUseCase)
 
 	var req updateprovider.UpdateProviderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
+		return
+	}
+
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	res, err := updateProviderController.UpdateProvider(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to update provider", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
 func (h *Handlers) GetProvider(w http.ResponseWriter, r *http.Request) {
 	providerRepo, err := h.getProviderRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -107,26 +110,28 @@ func (h *Handlers) GetProvider(w http.ResponseWriter, r *http.Request) {
 	getProviderController := getprovider.NewGetProviderController(getProviderUseCase)
 
 	var req getprovider.GetProviderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
+		return
+	}
+
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	res, err := getProviderController.GetProvider(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to get provider", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
 func (h *Handlers) GetProviderByTenant(w http.ResponseWriter, r *http.Request) {
 	providerRepo, err := h.getProviderRepo(r)
 	if err != nil {
-		http.Error(w, "Failed to retrieve database connection", http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
@@ -134,25 +139,29 @@ func (h *Handlers) GetProviderByTenant(w http.ResponseWriter, r *http.Request) {
 	getProvidersController := getproviders.NewGetProvidersController(getProvidersUseCase)
 
 	var req getproviders.GetProvidersRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
+		return
+	}
+
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
 		return
 	}
 
 	res, err := getProvidersController.GetProviders(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to get providers", err, http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+	h.BaseHandler.RespondWithJSON(w, res)
 }
 
 // NewRouter sets up the router with all routes
 func NewRouter(dbManager *db.Manager) *chi.Mux {
-	h := NewHandlers(dbManager)
+	b := handler.NewBaseHandler(dbManager)
+	h := NewHandlers(b)
+
 	r := chi.NewRouter()
 
 	// Set up routes

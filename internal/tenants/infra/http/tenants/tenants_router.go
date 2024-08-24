@@ -16,14 +16,15 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-
 type Handlers struct {
 	BaseHandler *handler.BaseHandler
+	mainDB      db.Database
 }
 
-func NewHandlers(baseHandler *handler.BaseHandler) *Handlers {
+func NewHandlers(baseHandler *handler.BaseHandler, mainDB db.Database) *Handlers {
 	return &Handlers{
 		BaseHandler: baseHandler,
+		mainDB:      mainDB,
 	}
 }
 
@@ -37,7 +38,7 @@ func (h *Handlers) getTenantRepo(r *http.Request) (repository.TenantRepository, 
 		return nil, err
 	}
 	// Initialize repository
-	tenantRepo := repos.NewTenantRepository(h.BaseHandler.MainDB, database)
+	tenantRepo := repos.NewTenantRepository(h.mainDB, database)
 	return tenantRepo, nil
 }
 
@@ -121,7 +122,7 @@ func (h *Handlers) GetTenant(w http.ResponseWriter, r *http.Request) {
 
 // GetTenants retrieves all tenants
 func (h *Handlers) GetTenants(w http.ResponseWriter, r *http.Request) {
-	tenantRepo := repos.NewTenantsRepository(h.BaseHandler.MainDB)
+	tenantRepo := repos.NewTenantsRepository(h.mainDB)
 
 	getTenantsUseCase := gettenants.NewGetTenantsUseCase(tenantRepo)
 	getTenantsController := gettenants.NewGetTenantsController(getTenantsUseCase)
@@ -137,8 +138,8 @@ func (h *Handlers) GetTenants(w http.ResponseWriter, r *http.Request) {
 
 // NewRouter sets up the router with all routes
 func NewRouter(mainDB db.Database, dbManager *db.Manager) *chi.Mux {
-	b := handler.NewBaseHandler(mainDB, dbManager)
-	h := NewHandlers(b)
+	b := handler.NewBaseHandler(dbManager)
+	h := NewHandlers(b, mainDB)
 
 	r := chi.NewRouter()
 

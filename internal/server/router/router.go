@@ -4,7 +4,7 @@ import (
 	"getnoti.com/internal/notifications/infra/http"
 	providerroutes "getnoti.com/internal/providers/infra/http"
 	"getnoti.com/internal/server/middleware"
-tenantMiddleware "getnoti.com/internal/shared/middleware"
+	tenantMiddleware "getnoti.com/internal/shared/middleware"
 	"getnoti.com/internal/templates/infra/http"
 	"getnoti.com/internal/tenants/infra/http/tenants"
 	"getnoti.com/internal/tenants/infra/http/users"
