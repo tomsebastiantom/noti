@@ -1,7 +1,6 @@
 package createtemplate
 
 type CreateTemplateRequest struct {
-    TenantID  string
     Name      string
     Content   string
     IsPublic  bool

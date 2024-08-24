@@ -54,9 +54,7 @@ func (h *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
 	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
 		return
 	}
-	if req.ID == "" || req.ID == "null" {
-		req.ID = utils.GenerateUUID()
-	}
+	
 
 	res, err := createUserController.CreateUser(r.Context(), req)
 	if err != nil {

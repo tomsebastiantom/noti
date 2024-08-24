@@ -25,7 +25,6 @@ func (uc *createTemplateUseCase) Execute(ctx context.Context, req CreateTemplate
 	
 	tmpl := &domain.Template{
 		ID:        tmplID,
-		TenantID:  req.TenantID,
 		Name:      req.Name,
 		Content:   req.Content,
 		IsPublic:  req.IsPublic,

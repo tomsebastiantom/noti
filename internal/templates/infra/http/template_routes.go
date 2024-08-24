@@ -10,7 +10,7 @@ import (
 	"getnoti.com/internal/templates/repos/implementations"
 	"getnoti.com/internal/templates/usecases/create_template"
 	"getnoti.com/internal/templates/usecases/get_template"
-	"getnoti.com/internal/templates/usecases/get_templates_by_tenant"
+	"getnoti.com/internal/templates/usecases/get_templates"
 	"getnoti.com/internal/templates/usecases/update_template"
 	"getnoti.com/pkg/db"
 	"github.com/go-chi/chi/v5"
@@ -56,11 +56,6 @@ func (h *Handlers) CreateTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
-		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
-		return
-	}
-
 	res, err := createTemplateController.CreateTemplate(r.Context(), req)
 	if err != nil {
 		h.BaseHandler.HandleError(w, "Failed to create template", err, http.StatusInternalServerError)
@@ -85,11 +80,7 @@ func (h *Handlers) UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
-		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
-		return
-	}
-
+	
 	res, err := updateTemplateController.UpdateTemplate(r.Context(), req)
 	if err != nil {
 		h.BaseHandler.HandleError(w, "Failed to update template", err, http.StatusInternalServerError)
@@ -114,10 +105,6 @@ func (h *Handlers) GetTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
-		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
-		return
-	}
 
 	res, err := getTemplateController.GetTemplate(r.Context(), req)
 	if err != nil {
@@ -128,17 +115,17 @@ func (h *Handlers) GetTemplate(w http.ResponseWriter, r *http.Request) {
 	h.BaseHandler.RespondWithJSON(w, res)
 }
 
-func (h *Handlers) GetTemplatesByTenant(w http.ResponseWriter, r *http.Request) {
+func (h *Handlers) GetTemplates(w http.ResponseWriter, r *http.Request) {
 	templateRepo, err := h.getTemplateRepo(r)
 	if err != nil {
 		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
 		return
 	}
 
-	getTemplatesByTenantUseCase := gettemplates.NewGetTemplatesByTenantUseCase(templateRepo)
-	getTemplateByTenantController := gettemplates.NewGetTemplatesByTenantController(getTemplatesByTenantUseCase)
+	getTemplatesByTenantUseCase := gettemplates.NewGetTemplatesUseCase(templateRepo)
+	getTemplateByTenantController := gettemplates.NewGetTemplatesController(getTemplatesByTenantUseCase)
 
-	var req gettemplates.GetTemplatesByTenantRequest
+	var req gettemplates.GetTemplatesRequest
 	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
 		return
 	}
@@ -148,7 +135,7 @@ func (h *Handlers) GetTemplatesByTenant(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	res, err := getTemplateByTenantController.GetTemplatesByTenant(r.Context(), req)
+	res, err := getTemplateByTenantController.GetTemplates(r.Context(), req)
 	if err != nil {
 		h.BaseHandler.HandleError(w, "Failed to get templates by tenant", err, http.StatusInternalServerError)
 		return
@@ -166,7 +153,7 @@ func NewRouter(dbManager *db.Manager) *chi.Mux {
 	// Set up routes
 	r.Post("/", h.CreateTemplate)
 	r.Put("/{id}", h.UpdateTemplate)
-	r.Get("/tenants/{id}", h.GetTemplatesByTenant)
+	r.Get("/", h.GetTemplates)
 	r.Get("/{id}", h.GetTemplate)
 
 	return r

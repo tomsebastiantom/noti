@@ -31,9 +31,6 @@ func (uc *updateTemplateUseCase) Execute(ctx context.Context, req UpdateTemplate
     }
 
     // Update the template with provided fields, retain existing values for fields not provided
-    if req.TenantID != nil {
-        existingTemplate.TenantID = *req.TenantID
-    }
     if req.Name != nil {
         existingTemplate.Name = *req.Name
     }
