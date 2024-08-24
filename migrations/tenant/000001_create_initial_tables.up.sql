@@ -13,7 +13,7 @@ CREATE TABLE users (
 
 CREATE TABLE templates (
     id UUID PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL UNIQUE,
     content TEXT NOT NULL,
     is_public BOOLEAN NOT NULL,
     variables JSONB NOT NULL
@@ -21,7 +21,7 @@ CREATE TABLE templates (
 
 CREATE TABLE providers (
     id UUID PRIMARY KEY,
-    name VARCHAR(255) NOT NULL
+    name VARCHAR(255) NOT NULL UNIQUE
 );
 
 CREATE TABLE tenant_metadata (
