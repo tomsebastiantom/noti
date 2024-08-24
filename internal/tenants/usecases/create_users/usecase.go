@@ -26,10 +26,10 @@ func NewCreateUsersUseCase(repo repository.UserRepository) CreateUsersUseCase {
 func (uc *createUsersUseCase) Execute(ctx context.Context, input CreateUsersRequest) (CreateUsersResponse, error) {
     var output CreateUsersResponse
     for _, user := range input.Users {
-        if user.ID == "" || user.TenantID == "" {
+        if user.ID == ""  {
             output.FailedUsers = append(output.FailedUsers, FailedUser{
                 UserID: user.ID,
-                Reason: "Missing user ID or tenant ID",
+                Reason: "Missing user ID",
             })
             continue
         }

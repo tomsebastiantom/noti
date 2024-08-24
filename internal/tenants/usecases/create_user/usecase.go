@@ -24,7 +24,6 @@ func NewCreateUserUseCase(repo repository.UserRepository) CreateUserUseCase {
 func (uc *createUserUseCase) Execute(ctx context.Context, input CreateUserRequest) (CreateUserResponse, error) {
     user := domain.User{
         ID:            input.ID,
-        TenantID:      input.TenantID,
         Email:         input.Email,
         PhoneNumber:   input.PhoneNumber,
         DeviceID:      input.DeviceID,

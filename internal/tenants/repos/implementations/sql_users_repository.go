@@ -25,9 +25,9 @@ func (r *sqlUserRepository) CreateUser(ctx context.Context, user domain.User) er
 		return fmt.Errorf("failed to marshal consents: %w", err)
 	}
 
-	query := `INSERT INTO users (id, tenant_id, email, phone_number, device_id, web_push_token, consents, preferred_mode, created_at, updated_at) 
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	_, err = r.db.Exec(ctx, query, user.ID, user.TenantID, user.Email, user.PhoneNumber, user.DeviceID, user.WebPushToken, consents, user.PreferredMode, now, now)
+	query := `INSERT INTO users (id, email, phone_number, device_id, web_push_token, consents, preferred_mode, created_at, updated_at) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	_, err = r.db.Exec(ctx, query, user.ID, user.Email, user.PhoneNumber, user.DeviceID, user.WebPushToken, consents, user.PreferredMode, now, now)
 	if err != nil {
 		return fmt.Errorf("failed to create user: %w", err)
 	}
@@ -35,11 +35,11 @@ func (r *sqlUserRepository) CreateUser(ctx context.Context, user domain.User) er
 }
 
 func (r *sqlUserRepository) GetUserByID(ctx context.Context, userid string) (domain.User, error) {
-	query := `SELECT id, tenant_id, email, phone_number, device_id, web_push_token, consents, preferred_mode FROM users WHERE id = ?`
+	query := `SELECT id,  email, phone_number, device_id, web_push_token, consents, preferred_mode FROM users WHERE id = ?`
 	row := r.db.QueryRow(ctx, query, userid)
 	var user domain.User
 	var consents []byte
-	err := row.Scan(&user.ID, &user.TenantID, &user.Email, &user.PhoneNumber, &user.DeviceID, &user.WebPushToken, &consents, &user.PreferredMode)
+	err := row.Scan(&user.ID, &user.Email, &user.PhoneNumber, &user.DeviceID, &user.WebPushToken, &consents, &user.PreferredMode)
 	if err != nil {
 		return domain.User{}, fmt.Errorf("failed to get user: %w", err)
 	}
@@ -59,17 +59,17 @@ func (r *sqlUserRepository) UpdateUser(ctx context.Context, user domain.User) er
 		return fmt.Errorf("failed to marshal consents: %w", err)
 	}
 
-	query := `UPDATE users SET tenant_id = ?, email = ?, phone_number = ?, device_id = ?, web_push_token = ?, consents = ?, preferred_mode = ?, updated_at = ? WHERE id = ?`
-	_, err = r.db.Exec(ctx, query, user.TenantID, user.Email, user.PhoneNumber, user.DeviceID, user.WebPushToken, consents, user.PreferredMode, now, user.ID)
+	query := `UPDATE users SET email = ?, phone_number = ?, device_id = ?, web_push_token = ?, consents = ?, preferred_mode = ?, updated_at = ? WHERE id = ?`
+	_, err = r.db.Exec(ctx, query, user.Email, user.PhoneNumber, user.DeviceID, user.WebPushToken, consents, user.PreferredMode, now, user.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update user: %w", err)
 	}
 	return nil
 }
 
-func (r *sqlUserRepository) GetUsersByTenantID(ctx context.Context, tenantid string) ([]domain.User, error) {
-	query := `SELECT id, tenant_id, email, phone_number, device_id, web_push_token, consents, preferred_mode FROM users WHERE tenant_id = ?`
-	rows, err := r.db.Query(ctx, query, tenantid)
+func (r *sqlUserRepository) GetUsers(ctx context.Context) ([]domain.User, error) {
+	query := `SELECT id, email, phone_number, device_id, web_push_token, consents, preferred_mode FROM users`
+	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %w", err)
 	}
@@ -79,7 +79,7 @@ func (r *sqlUserRepository) GetUsersByTenantID(ctx context.Context, tenantid str
 	for rows.Next() {
 		var user domain.User
 		var consents []byte
-		err := rows.Scan(&user.ID, &user.TenantID, &user.Email, &user.PhoneNumber, &user.DeviceID, &user.WebPushToken, &consents, &user.PreferredMode)
+		err := rows.Scan(&user.ID, &user.Email, &user.PhoneNumber, &user.DeviceID, &user.WebPushToken, &consents, &user.PreferredMode)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}

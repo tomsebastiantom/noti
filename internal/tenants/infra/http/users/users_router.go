@@ -54,10 +54,8 @@ func (h *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
 	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
 		return
 	}
-
-	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
-		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)
-		return
+	if req.ID == "" || req.ID == "null" {
+		req.ID = utils.GenerateUUID()
 	}
 
 	res, err := createUserController.CreateUser(r.Context(), req)

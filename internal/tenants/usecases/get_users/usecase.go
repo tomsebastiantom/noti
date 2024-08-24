@@ -30,7 +30,7 @@ func (uc *getUsersUseCase) Execute(ctx context.Context, req GetUsersRequest) (Ge
         }
         return GetUsersResponse{Users: []domain.User{user}}, nil
     } else if req.TenantID != "" {
-        users, err := uc.repo.GetUsersByTenantID(ctx, req.TenantID)
+        users, err := uc.repo.GetUsers(ctx)
         if err != nil {
             return GetUsersResponse{}, err
         }

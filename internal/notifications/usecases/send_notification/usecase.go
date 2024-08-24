@@ -35,13 +35,13 @@ func NewSendNotificationUseCase(providerService *providers.ProviderService, temp
 	}
 }
 
-func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificationRequest) (SendNotificationResponse,error) {
+func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificationRequest) (SendNotificationResponse, error) {
 	providerID, err := u.getProviderID(ctx, req, u.preferencesCache)
 	if err != nil {
 		return SendNotificationResponse{
 			Status: "failed",
 			Error:  "failed to get provider ID: " + err.Error(),
-		},err
+		}, err
 	}
 
 	notification, err := u.createNotification(ctx, req, providerID)
@@ -49,7 +49,7 @@ func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificat
 		return SendNotificationResponse{
 			Status: "failed",
 			Error:  "notification creation failed: " + err.Error(),
-		},err
+		}, err
 	}
 
 	content, err := u.templateService.GetContent(ctx, notification.TemplateID, notification.Variables)
@@ -58,7 +58,7 @@ func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificat
 			ID:     notification.ID,
 			Status: "failed",
 			Error:  "failed to get template content: " + err.Error(),
-		},err
+		}, err
 	}
 
 	sendReq := dtos.SendNotificationRequest{
@@ -76,13 +76,13 @@ func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificat
 			ID:     notification.ID,
 			Status: "failed",
 			Error:  "notification sending failed: " + sendResp.Message, // Detailed error message
-		},err
+		}, err
 
 	}
 	return SendNotificationResponse{
 		ID:     notification.ID,
 		Status: "queued",
-	},nil
+	}, nil
 }
 
 func (u *SendNotificationUseCase) getProviderID(ctx context.Context, req SendNotificationRequest, preferencesCache *cache.GenericCache) (string, error) {
@@ -146,10 +146,7 @@ func (u *SendNotificationUseCase) createNotification(ctx context.Context, req Se
 		}
 	}
 
-	ID, err := utils.GenerateUUID()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate UUID: %w", err)
-	}
+	ID := utils.GenerateUUID()
 
 	notification := &domain.Notification{
 		ID:         ID,
@@ -163,7 +160,7 @@ func (u *SendNotificationUseCase) createNotification(ctx context.Context, req Se
 		Variables:  variables,
 	}
 
-	err = u.notificationRepository.CreateNotification(ctx, notification)
+	err := u.notificationRepository.CreateNotification(ctx, notification)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create notification: %w", err)
 	}

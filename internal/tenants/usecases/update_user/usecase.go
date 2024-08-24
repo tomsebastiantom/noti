@@ -24,21 +24,43 @@ func NewUpdateUserUseCase(repo repository.UserRepository) UpdateUserUseCase {
 }
 
 func (uc *updateUserUseCase) Execute(ctx context.Context, input UpdateUserRequest) (UpdateUserResponse, error) {
-    user := domain.User{
-        ID:            input.UserID,
-        TenantID:      input.TenantID,
-        Email:         input.Email,
-        PhoneNumber:   input.PhoneNumber,
-        DeviceID:      input.DeviceID,
-        WebPushToken:  input.WebPushToken,
-        Consents:      input.Consents,
-        PreferredMode: input.PreferredMode,
+   
+    existingUser, err := uc.repo.GetUserByID(ctx, input.ID) 
+    if err != nil {
+        return UpdateUserResponse{Success: false, Message: err.Error()}, err
     }
 
-    err := uc.repo.UpdateUser(ctx, user)
+
+    updatedUser := domain.User{
+        ID:            existingUser.ID, // Ensure we keep the original ID
+        Email:         ifNotEmpty(input.Email, existingUser.Email),
+        PhoneNumber:   ifNotEmpty(input.PhoneNumber, existingUser.PhoneNumber),
+        DeviceID:      ifNotEmpty(input.DeviceID, existingUser.DeviceID),
+        WebPushToken:  ifNotEmpty(input.WebPushToken, existingUser.WebPushToken),
+        PreferredMode: ifNotEmpty(input.PreferredMode, existingUser.PreferredMode),
+    }
+
+    if input.Consents != nil {
+        updatedUser.Consents = input.Consents
+    } else {
+        updatedUser.Consents = existingUser.Consents
+    }
+
+   
+
+    // Update the user in the repository
+    err = uc.repo.UpdateUser(ctx, updatedUser)
     if err != nil {
         return UpdateUserResponse{Success: false, Message: err.Error()}, err
     }
 
     return UpdateUserResponse{Success: true, Message: "User updated successfully"}, nil
+}
+
+// Helper function to use the new value if it's not empty, otherwise use the current value
+func ifNotEmpty(new, current string) string {
+    if new != "" {
+        return new
+    }
+    return current
 }

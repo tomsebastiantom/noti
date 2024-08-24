@@ -7,7 +7,6 @@ import (
 )
 type CreateUserRequest struct {
     ID           string
-    TenantID     string
     Email        string
     PhoneNumber  string
     DeviceID     string
@@ -16,9 +15,6 @@ type CreateUserRequest struct {
     PreferredMode string
 }
 
-func (r *CreateUserRequest) SetTenantID(id string) {
-    r.TenantID = id
-}
 
 type CreateUserResponse struct {
     User domain.User

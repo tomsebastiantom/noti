@@ -21,11 +21,8 @@ func NewCreateTemplateUseCase(repository repos.TemplateRepository) CreateTemplat
 }
 
 func (uc *createTemplateUseCase) Execute(ctx context.Context, req CreateTemplateRequest) (CreateTemplateResponse, error) {
-	tmplID, err := utils.GenerateUUID()
-	if err != nil {
-		return CreateTemplateResponse{Success: false}, err
-	}
-
+	tmplID:= utils.GenerateUUID()
+	
 	tmpl := &domain.Template{
 		ID:        tmplID,
 		TenantID:  req.TenantID,
@@ -35,7 +32,7 @@ func (uc *createTemplateUseCase) Execute(ctx context.Context, req CreateTemplate
 		Variables: req.Variables,
 	}
 
-	err = uc.repository.CreateTemplate(ctx, tmpl)
+	err := uc.repository.CreateTemplate(ctx, tmpl)
 	if err != nil {
 		return CreateTemplateResponse{Success: false}, err
 	}
