@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"getnoti.com/internal/shared/middleware"
+	"getnoti.com/internal/shared/utils"
 	repository "getnoti.com/internal/tenants/repos"
 	"getnoti.com/internal/tenants/repos/implementations"
 	"getnoti.com/internal/tenants/usecases/create_user"
@@ -57,6 +58,12 @@ func (h *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Add tenant ID to the request if not present
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		http.Error(w, "Failed to process tenant ID", http.StatusInternalServerError)
+		return
+	}
+
 	res, err := createUserController.CreateUser(r.Context(), req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -81,6 +88,12 @@ func (h *Handlers) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	var req updateuser.UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Add tenant ID to the request if not present
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		http.Error(w, "Failed to process tenant ID", http.StatusInternalServerError)
 		return
 	}
 
@@ -111,6 +124,12 @@ func (h *Handlers) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Add tenant ID to the request if not present
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		http.Error(w, "Failed to process tenant ID", http.StatusInternalServerError)
+		return
+	}
+
 	res, err := getUserController.GetUsers(r.Context(), req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -132,7 +151,15 @@ func (h *Handlers) GetUsers(w http.ResponseWriter, r *http.Request) {
 	getUsersUseCase := getusers.NewGetUsersUseCase(userRepo)
 	getUserController := getusers.NewGetUsersController(getUsersUseCase)
 
-	res, err := getUserController.GetUsers(r.Context(), getusers.GetUsersRequest{})
+	req := getusers.GetUsersRequest{}
+
+	// Add tenant ID to the request if not present
+	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
+		http.Error(w, "Failed to process tenant ID", http.StatusInternalServerError)
+		return
+	}
+
+	res, err := getUserController.GetUsers(r.Context(), req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

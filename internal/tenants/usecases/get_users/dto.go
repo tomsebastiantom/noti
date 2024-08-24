@@ -9,6 +9,9 @@ type GetUsersRequest struct {
     TenantID string
 }
 
+func (r *GetUsersRequest) SetTenantID(id string) {
+    r.TenantID = id
+}
 type GetUsersResponse struct {
     Users []domain.User
 }
