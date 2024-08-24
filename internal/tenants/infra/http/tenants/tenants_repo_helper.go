@@ -45,7 +45,7 @@ func (h *Handlers) createTenantRepo(r *http.Request) (repository.TenantRepositor
         return nil, fmt.Errorf("failed to update request body: %w", err)
     }
 
-    tenantRepo := repos.NewTenantRepository(h.MainDB, database)
+    tenantRepo := repos.NewTenantRepository(h.BaseHandler.MainDB, database)
     return tenantRepo, nil
 }
 
@@ -109,10 +109,10 @@ func (h *Handlers) extractDBConfig(requestBody map[string]interface{}) *domain.D
 func (h *Handlers) getDatabaseConnection(tenantInfo *TenantInfo) (db.Database, error) {
 	if tenantInfo.DBConfig != nil {
 		dbConfig := h.convertDBCredentialsToMap(tenantInfo.DBConfig)
-		return h.DBManager.GetDatabaseConnectionWithConfig(tenantInfo.ID, dbConfig)
+		return h.BaseHandler.DBManager.GetDatabaseConnectionWithConfig(tenantInfo.ID, dbConfig)
 	}
 
-	database, dbConfigMap, err := h.DBManager.CreateNewTenantDatabase(tenantInfo.ID)
+	database, dbConfigMap, err := h.BaseHandler.DBManager.CreateNewTenantDatabase(tenantInfo.ID)
 	if err != nil {
 		return nil, err
 	}
