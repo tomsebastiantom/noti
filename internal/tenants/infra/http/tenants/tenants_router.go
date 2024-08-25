@@ -103,7 +103,7 @@ func (h *Handlers) GetTenant(w http.ResponseWriter, r *http.Request) {
 
 	getTenantUseCase := gettenant.NewGetTenantUseCase(tenantRepo)
 	getTenantController := gettenant.NewGetTenantController(getTenantUseCase)
-	id, err := utils.GetTenantIDFromReq(r)
+	id, err := utils.GetIDFromReq(r)
 	if err != nil {
 		h.BaseHandler.HandleError(w, "Failed to get tenant ID", err, http.StatusBadRequest)
 		return

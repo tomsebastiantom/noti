@@ -5,18 +5,19 @@ import (
 )
 
 type UpdateTemplateRequest struct {
-    TemplateID string
-    TenantID   *string
-    Name       *string
-    Content    *string
-    IsPublic   *bool
-    Variables  *[]string
+	ID        string
+	Name      *string
+	Content   *string
+	IsPublic  *bool
+	Variables *[]string
 }
 
-
+func (r *UpdateTemplateRequest) SetID(id string) {
+	r.ID = id
+}
 
 type UpdateTemplateResponse struct {
-    Template domain.Template
-    Success  bool
-    Message  string
+	Template domain.Template
+	Success  bool
+	Message  string
 }

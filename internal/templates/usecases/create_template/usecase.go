@@ -36,5 +36,6 @@ func (uc *createTemplateUseCase) Execute(ctx context.Context, req CreateTemplate
 		return CreateTemplateResponse{Success: false}, err
 	}
 
-	return CreateTemplateResponse{Success: true}, nil
+	return CreateTemplateResponse{Success: true,
+		Template: *tmpl,}, nil
 }

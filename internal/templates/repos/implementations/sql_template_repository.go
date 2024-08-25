@@ -36,7 +36,7 @@ func (r *sqlTemplateRepository) CreateTemplate(ctx context.Context, tmpl *domain
 
 // GetTemplateByID retrieves a template by its ID
 func (r *sqlTemplateRepository) GetTemplateByID(ctx context.Context, templateID string) (*domain.Template, error) {
-	query := `SELECT id, tenant_id, name, content, is_public, variables FROM templates WHERE id = ?`
+	query := `SELECT id, name, content, is_public, variables FROM templates WHERE id = ?`
 	row := r.db.QueryRow(ctx, query, templateID)
 	tmpl := &domain.Template{}
 	var variables []byte
@@ -101,10 +101,4 @@ func (r *sqlTemplateRepository) GetTemplates(ctx context.Context) ([]domain.Temp
 	return templates, nil
 }
 
-// wrapError wraps a database error with a more generic error
-func wrapError(err error, genericErr error) error {
-	if err != nil {
-		return fmt.Errorf("%w: %v", genericErr, err)
-	}
-	return genericErr
-}
+

@@ -1,17 +1,19 @@
 package gettemplate
 
 import (
-
-    "getnoti.com/internal/templates/domain"
-
+	"getnoti.com/internal/templates/domain"
 )
 
 type GetTemplateRequest struct {
-    TemplateID string
+	ID string
+}
+
+func (r *GetTemplateRequest) SetID(id string) {
+	r.ID = id
 }
 
 type GetTemplateResponse struct {
-    Template domain.Template
-    Success  bool
-    Message  string
+	Template domain.Template
+	Success  bool
+	Message  string
 }

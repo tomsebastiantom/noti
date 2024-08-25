@@ -1,5 +1,9 @@
 package createtemplate
 
+import (
+    "getnoti.com/internal/templates/domain"
+)
+
 type CreateTemplateRequest struct {
     Name      string
     Content   string
@@ -11,5 +15,6 @@ type CreateTemplateRequest struct {
 
 type CreateTemplateResponse struct {
     Success bool
+    Template domain.Template
     Message string
 }

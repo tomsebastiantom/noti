@@ -7,11 +7,11 @@ import (
 	"getnoti.com/internal/shared/middleware"
 	"getnoti.com/internal/shared/utils"
 	repository "getnoti.com/internal/templates/repos"
-	"getnoti.com/internal/templates/repos/implementations"
-	"getnoti.com/internal/templates/usecases/create_template"
-	"getnoti.com/internal/templates/usecases/get_template"
-	"getnoti.com/internal/templates/usecases/get_templates"
-	"getnoti.com/internal/templates/usecases/update_template"
+	repos "getnoti.com/internal/templates/repos/implementations"
+	createtemplate "getnoti.com/internal/templates/usecases/create_template"
+	gettemplate "getnoti.com/internal/templates/usecases/get_template"
+	gettemplates "getnoti.com/internal/templates/usecases/get_templates"
+	updatetemplate "getnoti.com/internal/templates/usecases/update_template"
 	"getnoti.com/pkg/db"
 	"github.com/go-chi/chi/v5"
 )
@@ -79,8 +79,11 @@ func (h *Handlers) UpdateTemplate(w http.ResponseWriter, r *http.Request) {
 	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
 		return
 	}
+	if err := utils.AddIDToRequest(r, &req); err != nil {
+		h.BaseHandler.HandleError(w, "Failed to process ID", err, http.StatusInternalServerError)
+		return
+	}
 
-	
 	res, err := updateTemplateController.UpdateTemplate(r.Context(), req)
 	if err != nil {
 		h.BaseHandler.HandleError(w, "Failed to update template", err, http.StatusInternalServerError)
@@ -101,10 +104,11 @@ func (h *Handlers) GetTemplate(w http.ResponseWriter, r *http.Request) {
 	getTemplateController := gettemplate.NewGetTemplateController(getTemplateUseCase)
 
 	var req gettemplate.GetTemplateRequest
-	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
+
+	if err := utils.AddIDToRequest(r, &req); err != nil {
+		h.BaseHandler.HandleError(w, "Failed to process ID", err, http.StatusInternalServerError)
 		return
 	}
-
 
 	res, err := getTemplateController.GetTemplate(r.Context(), req)
 	if err != nil {
@@ -126,9 +130,6 @@ func (h *Handlers) GetTemplates(w http.ResponseWriter, r *http.Request) {
 	getTemplateByTenantController := gettemplates.NewGetTemplatesController(getTemplatesByTenantUseCase)
 
 	var req gettemplates.GetTemplatesRequest
-	if !h.BaseHandler.DecodeJSONBody(w, r, &req) {
-		return
-	}
 
 	if err := utils.AddTenantIDToRequest(r, &req); err != nil {
 		h.BaseHandler.HandleError(w, "Failed to process tenant ID", err, http.StatusInternalServerError)

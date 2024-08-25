@@ -38,5 +38,5 @@ func (h *BaseHandler) RespondWithJSON(w http.ResponseWriter, data interface{}) {
 }
 
 func (h *BaseHandler) HandleError(w http.ResponseWriter, message string, err error, statusCode int) {
-	http.Error(w, message+" "+"Error is"+ " "+ err.Error(), statusCode)
+	http.Error(w, message+" "+"Error is"+" "+err.Error(), statusCode)
 }

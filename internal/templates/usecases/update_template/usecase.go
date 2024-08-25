@@ -22,7 +22,7 @@ func NewUpdateTemplateUseCase(repository repos.TemplateRepository) UpdateTemplat
 
 func (uc *updateTemplateUseCase) Execute(ctx context.Context, req UpdateTemplateRequest) (UpdateTemplateResponse,error) {
     // Check if the template exists
-    existingTemplate, err := uc.repository.GetTemplateByID(ctx, req.TemplateID)
+    existingTemplate, err := uc.repository.GetTemplateByID(ctx, req.ID)
     if err != nil {
         if errors.Is(err, postgres.ErrTemplateNotFound) {
             return UpdateTemplateResponse{Success: false, Message: ErrTemplateNotFound.Error()},err

@@ -18,7 +18,7 @@ func NewGetTemplateUseCase(repository repos.TemplateRepository) GetTemplateUseCa
 }
 
 func (uc *getTemplateUseCase) Execute(ctx context.Context, req GetTemplateRequest) (GetTemplateResponse,error) {
-    tmpl, err := uc.repository.GetTemplateByID(ctx, req.TemplateID)
+    tmpl, err := uc.repository.GetTemplateByID(ctx, req.ID)
     if err != nil {
         return GetTemplateResponse{Success: false, Message: err.Error()},err
     }
