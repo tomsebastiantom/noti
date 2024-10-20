@@ -4,6 +4,7 @@ import (
 	"context"
 	"getnoti.com/internal/providers/domain"
 	"getnoti.com/internal/providers/repos"
+	"getnoti.com/internal/shared/utils"
 )
 
 type CreateProviderUseCase interface {
@@ -23,28 +24,25 @@ func NewCreateProviderUseCase(repo repos.ProviderRepository) CreateProviderUseCa
 func (uc *createProviderUseCase) Execute(ctx context.Context, req CreateProviderRequest) (CreateProviderResponse, error) {
 	// Create a new Provider
 	provider := &domain.Provider{
-		Name:     req.Name,
-		Enabled:  true, // Assuming new providers are enabled by default
-		Channels: make(map[string]domain.ProviderChannel),
+		ID:          utils.GenerateUUID(),
+		Name:        req.Name,
+		Channels:    make([]domain.PrioritizedChannel, 0, len(req.Channels)),
+		Credentials: req.Credentials,
 	}
 
 	// Set up channels with priorities
-	for _, channelName := range req.Channels {
+	for _, channelType := range req.Channels {
 		// Get the next available priority for this channel
-		priority, err := uc.repo.GetNextAvailablePriority(ctx, channelName)
+		priority, err := uc.repo.GetNextAvailablePriority(ctx, string(channelType))
 		if err != nil {
 			return CreateProviderResponse{}, err
 		}
 
-		// If no priority is available in the database, set it to the highest priority (1)
-		if priority == 0 {
-			priority = 1
-		}
-
-		provider.Channels[channelName] = domain.ProviderChannel{
-			Channel:  channelName,
+		provider.Channels = append(provider.Channels, domain.PrioritizedChannel{
+			Type:     channelType,
 			Priority: priority,
-		}
+			Enabled:  true, // Assuming new channels are enabled by default
+		})
 	}
 
 	// Create the provider in the repository
@@ -55,17 +53,18 @@ func (uc *createProviderUseCase) Execute(ctx context.Context, req CreateProvider
 
 	// Prepare the response
 	channelDTOs := make([]ProviderChannelDTO, 0, len(createdProvider.Channels))
-	for channelName, channel := range createdProvider.Channels {
+	for _, channel := range createdProvider.Channels {
 		channelDTOs = append(channelDTOs, ProviderChannelDTO{
-			Channel:  channelName,
+			Type:     channel.Type,
 			Priority: channel.Priority,
+			Enabled:  channel.Enabled,
 		})
 	}
 
 	return CreateProviderResponse{
-		ID:       createdProvider.ID,
-		Name:     createdProvider.Name,
-		Channels: channelDTOs,
-		Enabled:  createdProvider.Enabled,
+		ID:          createdProvider.ID,
+		Name:        createdProvider.Name,
+		Channels:    channelDTOs,
+		Credentials: createdProvider.Credentials,
 	}, nil
 }

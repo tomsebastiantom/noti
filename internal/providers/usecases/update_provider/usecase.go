@@ -27,13 +27,14 @@ func (uc *updateProviderUseCase) Execute(ctx context.Context, req UpdateProvider
     }
 
     provider.Name = req.Name
-    provider.Enabled = req.Enabled
-    provider.Channels = make(map[string]domain.ProviderChannel)
+    provider.Credentials = req.Credentials
+    provider.Channels = make([]domain.PrioritizedChannel, len(req.Channels))
 
-    for _, channelDTO := range req.Channels {
-        provider.Channels[channelDTO.Channel] = domain.ProviderChannel{
-            Channel:  channelDTO.Channel,
+    for i, channelDTO := range req.Channels {
+        provider.Channels[i] = domain.PrioritizedChannel{
+            Type:     channelDTO.Type,
             Priority: channelDTO.Priority,
+            Enabled:  channelDTO.Enabled,
         }
     }
 
@@ -42,18 +43,19 @@ func (uc *updateProviderUseCase) Execute(ctx context.Context, req UpdateProvider
         return UpdateProviderResponse{}, err
     }
 
-    responseChannels := make([]ProviderChannelDTO, 0, len(updatedProvider.Channels))
-    for _, channel := range updatedProvider.Channels {
-        responseChannels = append(responseChannels, ProviderChannelDTO{
-            Channel:  channel.Channel,
+    responseChannels := make([]ProviderChannelDTO, len(updatedProvider.Channels))
+    for i, channel := range updatedProvider.Channels {
+        responseChannels[i] = ProviderChannelDTO{
+            Type:     channel.Type,
             Priority: channel.Priority,
-        })
+            Enabled:  channel.Enabled,
+        }
     }
 
     return UpdateProviderResponse{
-        ID:       updatedProvider.ID,
-        Name:     updatedProvider.Name,
-        Channels: responseChannels,
-        Enabled:  updatedProvider.Enabled,
+        ID:          updatedProvider.ID,
+        Name:        updatedProvider.Name,
+        Channels:    responseChannels,
+        Credentials: updatedProvider.Credentials,
     }, nil
 }

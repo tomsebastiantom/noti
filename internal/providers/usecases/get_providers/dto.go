@@ -1,7 +1,10 @@
 package getproviders
 
+import (
+    "getnoti.com/internal/providers/domain"
+)
 type GetProvidersRequest struct {
-    TenantID string `json:"tenant_id"`
+   
 }
 
 type GetProvidersResponse struct {
@@ -9,14 +12,14 @@ type GetProvidersResponse struct {
 }
 
 type ProviderResponse struct {
-    ID       string              `json:"id"`
-    Name     string              `json:"name"`
-    Channels []ProviderChannelDTO `json:"channels"`
-    TenantID string              `json:"tenant_id"`
-    Enabled  bool                `json:"enabled"`
+    ID          string              `json:"id"`
+    Name        string              `json:"name"`
+    Channels    []ProviderChannelDTO `json:"channels"`
+    Credentials interface{}         `json:"credentials"`
 }
 
 type ProviderChannelDTO struct {
-    Channel  string `json:"channel"`
-    Priority int    `json:"priority"`
+    Type     domain.ChannelType `json:"type"`
+    Priority int                `json:"priority"`
+    Enabled  bool               `json:"enabled"`
 }

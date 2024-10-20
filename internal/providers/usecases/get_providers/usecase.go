@@ -19,6 +19,7 @@ func NewGetProvidersUseCase(repo repos.ProviderRepository) GetProvidersUseCase {
     }
 }
 
+
 func (uc *getProvidersUseCase) Execute(ctx context.Context, req GetProvidersRequest) (GetProvidersResponse, error) {
     providers, err := uc.repo.GetProviders(ctx)
     if err != nil {
@@ -27,19 +28,20 @@ func (uc *getProvidersUseCase) Execute(ctx context.Context, req GetProvidersRequ
 
     providerResponses := make([]ProviderResponse, len(providers))
     for i, provider := range providers {
-        channelDTOs := make([]ProviderChannelDTO, 0, len(provider.Channels))
-        for channelName, channel := range provider.Channels {
-            channelDTOs = append(channelDTOs, ProviderChannelDTO{
-                Channel:  channelName,
+        channelDTOs := make([]ProviderChannelDTO, len(provider.Channels))
+        for j, channel := range provider.Channels {
+            channelDTOs[j] = ProviderChannelDTO{
+                Type:     channel.Type,
                 Priority: channel.Priority,
-            })
+                Enabled:  channel.Enabled,
+            }
         }
 
         providerResponses[i] = ProviderResponse{
-            ID:       provider.ID,
-            Name:     provider.Name,
-            Channels: channelDTOs,
-            Enabled:  provider.Enabled,
+            ID:          provider.ID,
+            Name:        provider.Name,
+            Channels:    channelDTOs,
+            Credentials: provider.Credentials,
         }
     }
 

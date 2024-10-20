@@ -1,19 +1,24 @@
 package createprovider
 
+import (
+    "getnoti.com/internal/providers/domain"
+)
 
 type CreateProviderRequest struct {
-    Name     string   `json:"name"`
-    Channels []string `json:"channels"`
+    Name        string                `json:"name"`
+    Channels    []domain.ChannelType  `json:"channels"`
+    Credentials interface{}           `json:"credentials"`
 }
 
 type CreateProviderResponse struct {
-    ID       string              `json:"id"`
-    Name     string              `json:"name"`
-    Channels []ProviderChannelDTO `json:"channels"`
-    Enabled  bool                `json:"enabled"`
+    ID          string              `json:"id"`
+    Name        string              `json:"name"`
+    Channels    []ProviderChannelDTO `json:"channels"`
+    Credentials interface{}         `json:"credentials"`
 }
 
 type ProviderChannelDTO struct {
-    Channel  string `json:"channel"`
-    Priority int    `json:"priority"`
+    Type     domain.ChannelType `json:"type"`
+    Priority int                `json:"priority"`
+    Enabled  bool               `json:"enabled"`
 }

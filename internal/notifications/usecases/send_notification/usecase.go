@@ -3,8 +3,6 @@ package sendnotification
 import (
 	"context"
 	"fmt"
-	"sort"
-
 	"getnoti.com/internal/notifications/domain"
 	"getnoti.com/internal/notifications/repos"
 	providerDomain "getnoti.com/internal/providers/domain"
@@ -93,48 +91,25 @@ func (u *SendNotificationUseCase) getProviderID(ctx context.Context, req SendNot
 	cacheKey := fmt.Sprintf("preferences:%s:%s", req.TenantID, req.Channel)
 
 	// Try to get from cache first
-	if cachedPrefs, found := preferencesCache.Get(cacheKey); found {
-		providers := cachedPrefs.([]*providerDomain.Provider)
-		return u.extractProviderIDFromProviders(providers)
+	if cachedProvider, found := preferencesCache.Get(cacheKey); found {
+		provider := cachedProvider.(*providerDomain.Provider)
+		return provider.ID, nil
 	}
 
 	// If not in cache, fetch from provider Repo
-	providers, err := u.providerRepo.GetProviders(ctx)
+	provider, err := u.providerRepo.GetProviderByChannel(ctx, req.Channel)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch providers: %w", err)
+		return "", fmt.Errorf("failed to fetch provider: %w", err)
 	}
 
-	// Filter providers for the requested channel
-	channelProviders := u.filterProvidersByChannel(providers, req.Channel)
-
-	// Sort providers by priority (lowest number = highest priority)
-	sort.Slice(channelProviders, func(i, j int) bool {
-		return channelProviders[i].Channels[req.Channel].Priority < channelProviders[j].Channels[req.Channel].Priority
-	})
-
-	// Cache the providers
-	preferencesCache.Set(cacheKey, channelProviders, 1)
-
-	return u.extractProviderIDFromProviders(channelProviders)
-}
-
-func (u *SendNotificationUseCase) extractProviderIDFromProviders(providers []*providerDomain.Provider) (string, error) {
-	for _, provider := range providers {
-		if provider.Enabled {
-			return provider.ID, nil
-		}
+	if provider == nil {
+		return "", fmt.Errorf("no provider found for channel %s", req.Channel)
 	}
-	return "", fmt.Errorf("no enabled provider found")
-}
 
-func (u *SendNotificationUseCase) filterProvidersByChannel(providers []*providerDomain.Provider, channel string) []*providerDomain.Provider {
-	var channelProviders []*providerDomain.Provider
-	for _, provider := range providers {
-		if _, ok := provider.Channels[channel]; ok {
-			channelProviders = append(channelProviders, provider)
-		}
-	}
-	return channelProviders
+	// Cache the provider
+	preferencesCache.Set(cacheKey, provider, 1)
+
+	return provider.ID, nil
 }
 
 func (u *SendNotificationUseCase) createNotification(ctx context.Context, req SendNotificationRequest, providerID string) (*domain.Notification, error) {
@@ -167,3 +142,5 @@ func (u *SendNotificationUseCase) createNotification(ctx context.Context, req Se
 
 	return notification, nil
 }
+
+// TODO: Implement fallback mechanism to try the next available provider if the current one fails to send the notification.

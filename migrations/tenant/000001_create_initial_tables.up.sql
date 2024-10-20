@@ -24,6 +24,15 @@ CREATE TABLE providers (
     name VARCHAR(255) NOT NULL UNIQUE
 );
 
+CREATE TABLE provider_channels (
+    provider_id UUID,
+    channel_type INT,
+    enabled BOOLEAN,
+    priority INT,
+    PRIMARY KEY (provider_id, channel_type),
+    FOREIGN KEY (provider_id) REFERENCES providers(id)
+);
+
 CREATE TABLE tenant_metadata (
     id UUID PRIMARY KEY,
     name VARCHAR(255) NOT NULL,

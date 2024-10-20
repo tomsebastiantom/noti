@@ -28,15 +28,16 @@ func (uc *getProviderUseCase) Execute(ctx context.Context, req GetProviderReques
     channelDTOs := make([]ProviderChannelDTO, 0, len(provider.Channels))
     for _, channel := range provider.Channels {
         channelDTOs = append(channelDTOs, ProviderChannelDTO{
-            Channel:  channel.Channel,
+            Type:     channel.Type,
             Priority: channel.Priority,
+            Enabled:  channel.Enabled,
         })
     }
 
     return GetProviderResponse{
-        ID:       provider.ID,
-        Name:     provider.Name,
-        Channels: channelDTOs,
-        Enabled:  provider.Enabled,
+        ID:          provider.ID,
+        Name:        provider.Name,
+        Channels:    channelDTOs,
+        Credentials: provider.Credentials,
     }, nil
 }
