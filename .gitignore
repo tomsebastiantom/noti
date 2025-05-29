@@ -28,4 +28,4 @@ vendor/
 
 # coverage files
 coverage.txt
-cmd/noti.db
+noti.db
