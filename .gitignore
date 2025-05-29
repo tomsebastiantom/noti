@@ -2,8 +2,12 @@
 .idea
 .vscode
 
-# Config
+# Environment files (CRITICAL - prevents committing secrets)
 .env
+.env.local
+.env.production
+.env.staging
+.env.development
 
 # Binaries for programs and plugins
 *.exe
@@ -24,9 +28,4 @@ vendor/
 
 # coverage files
 coverage.txt
-cmd/3d014e4e-8d14-47ac-aa19-c6660991512a.db
-cmd/3d014e4e-8d14-47ac-aa19-c6660991512a.db-journal
-cmd/4f2bec47-d2ee-4915-80c7-20d4ce0e43cb.db
-cmd/f25fb1d3-ebc6-4a5b-a0e9-a8788bb3048f.db
-cmd/f14639e4-6b27-4f66-8a01-c3f7192bd97c.db
 cmd/noti.db

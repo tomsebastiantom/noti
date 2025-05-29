@@ -6,17 +6,22 @@ http:
   port: "8072"
 
 logger:
-  log_level: "debug"
+  log_level: "debug" 
 
 database:
-  type: "sqlite" # or "postgres", "mysql", etc.
-  dsn: "noti.db" # For SQLite, this will be the database file name
+  type: "sqlite"
+  dsn: "noti.db"
 
 queue:
-  url: "amqp://guest:guest@localhost:5672/"
-  reconnect_interval: 5s
+  reconnect_interval: "5s"
+  max_reconnect_attempts: 3
+  heartbeat_interval: "30s"
 
-vault:
-  address: "http://127.0.0.1:8205"
-  #token: "hvs.CAESIER-LYOx6RcdWJETlXBx94iqUA9ZwalaQBMfXII_MyPbGh4KHGh2cy41Q1kwVU04UHVMQWlyU3R0WW44TWRkYmE"
-  token: "hvs.L5tharyDDPICe6rh9W0gxIj3"
+
+env: "development"
+
+# vault:
+#   address: "http://127.0.0.1:8205"
+#   #token: "hvs.CAESIER-LYOx6RcdWJETlXBx94iqUA9ZwalaQBMfXII_MyPbGh4KHGh2cy41Q1kwVU04UHVMQWlyU3R0WW44TWRkYmE"
+#   token: "hvs.L5tharyDDPICe6rh9W0gxIj3"
+
