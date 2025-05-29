@@ -1,16 +1,9 @@
 package logger
 
 import (
-    "time"
+	"time"
 )
 
-// Field represents a key-value pair for structured logging
-type Field struct {
-    Key   string
-    Value interface{}
-}
-
-// Basic field constructors
 func String(key, value string) Field { 
     return Field{Key: key, Value: value} 
 }

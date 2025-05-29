@@ -117,5 +117,5 @@ func (j *NotificationJob) Process(ctx context.Context) error {
 }
 
 func (nm *NotificationManager) Shutdown() {
-	nm.workerPoolManager.ShutdownAll()
+	nm.workerPoolManager.Shutdown()
 }

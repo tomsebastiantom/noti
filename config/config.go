@@ -46,8 +46,10 @@ type Database struct {
 
 // Queue structure
 type Queue struct {
-	URL               string        `yaml:"url"`
-	ReconnectInterval time.Duration `yaml:"reconnect_interval"`
+    URL                  string        `yaml:"url"`
+    ReconnectInterval    time.Duration `yaml:"reconnect_interval"`
+    MaxReconnectAttempts int           `yaml:"max_reconnect_attempts"`
+    HeartbeatInterval    time.Duration `yaml:"heartbeat_interval"`
 }
 
 type Vault struct {
