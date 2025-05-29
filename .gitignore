@@ -9,6 +9,17 @@
 .env.staging
 .env.development
 
+# Database files (CRITICAL - contains sensitive data)
+*.db
+*.sqlite
+*.sqlite3
+noti.db
+noti.sqlite
+database.db
+
+# Data directory (contains databases and sensitive files)
+data/
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -26,6 +37,19 @@ bin/
 # Dependency directories (remove the comment below to include it)
 vendor/
 
-# coverage files
+# Coverage files
 coverage.txt
-noti.db
+
+# Log files
+*.log
+logs/
+
+# Config files with secrets
+config.local.yaml
+config.production.yaml
+*.token
+
+# Temporary files
+tmp/
+temp/
+.tmp

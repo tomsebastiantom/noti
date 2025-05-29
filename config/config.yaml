@@ -10,7 +10,7 @@ logger:
 
 database:
   type: "sqlite"
-  dsn: "noti.db"
+  dsn: "./data/noti.db"
 
 queue:
   reconnect_interval: "5s"

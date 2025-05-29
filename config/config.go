@@ -133,7 +133,7 @@ func loadDefaults() error {
         "http.port":                    "8072",
         "logger.log_level":             "info",
         "database.type":                "sqlite",
-        "database.dsn":                 "noti.db",
+        "database.dsn":                 "./data/noti.db",
         "queue.reconnect_interval":     "5s",
         "queue.max_reconnect_attempts": 3,
         "queue.heartbeat_interval":     "30s",
