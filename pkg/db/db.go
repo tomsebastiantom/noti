@@ -44,7 +44,7 @@ type Transaction interface {
 // SQLDatabase wraps the sql.DB to implement the Database interface.
 type SQLDatabase struct {
 	*sql.DB
-	logger *logger.Logger
+	logger logger.Logger
 }
 
 // Implement the Database interface methods for SQLDatabase
@@ -85,7 +85,7 @@ func (db *SQLDatabase) Ping(ctx context.Context) error {
 // SQLTransaction wraps sql.Tx to implement the Transaction interface
 type SQLTransaction struct {
 	*sql.Tx
-	logger *logger.Logger
+	logger logger.Logger
 }
 
 // Implement the Transaction interface methods for SQLTransaction
@@ -105,7 +105,7 @@ func (tx *SQLTransaction) QueryRow(ctx context.Context, query string, args ...in
 }
 
 // NewDatabaseFactory initializes a new database connection based on the provided configuration.
-func NewDatabaseFactory(credentials map[string]interface{}, logger *logger.Logger) (Database, error) {
+func NewDatabaseFactory(credentials map[string]interface{}, logger logger.Logger) (Database, error) {
 	var dbConfig map[string]string
 
 	if dsn, ok := credentials["dsn"].(string); ok {
@@ -127,7 +127,7 @@ func NewDatabaseFactory(credentials map[string]interface{}, logger *logger.Logge
 	return createDatabaseConnection(dbConfig, logger)
 }
 
-func createDatabaseConnection(dbConfig map[string]string, logger *logger.Logger) (Database, error) {
+func createDatabaseConnection(dbConfig map[string]string, logger logger.Logger) (Database, error) {
 	dbType, ok := dbConfig["type"]
 	if !ok {
 		return nil, fmt.Errorf("database type is required")
@@ -167,7 +167,7 @@ func buildDSN(config map[string]string) string {
 	}
 }
 
-func createTenantDatabase(tenantID string, dbConfig map[string]interface{}, logger *logger.Logger) (Database, map[string]interface{}, error) {
+func createTenantDatabase(tenantID string, dbConfig map[string]interface{}, logger logger.Logger) (Database, map[string]interface{}, error) {
 	dsn, ok := dbConfig["dsn"].(string)
 	if !ok {
 		return nil, nil, fmt.Errorf("invalid DSN in configuration")

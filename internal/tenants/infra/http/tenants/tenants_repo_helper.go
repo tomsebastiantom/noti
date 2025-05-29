@@ -36,7 +36,7 @@ func (h *Handlers) createTenantRepo(r *http.Request) (repository.TenantRepositor
         return nil, fmt.Errorf("failed to get database connection: %w", err)
     }
 	//perform migration
-	if err := migrate.Migrate(tenantInfo.DBConfig.DSN,tenantInfo.DBConfig.Type,false); err != nil {
+	if err := migration.Migrate(tenantInfo.DBConfig.DSN,tenantInfo.DBConfig.Type,false); err != nil {
 		return nil, fmt.Errorf("failed to run main Database migrations: %w", err)
 	}
     // Update request body

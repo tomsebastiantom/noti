@@ -19,6 +19,7 @@ type Config struct {
 	Database Database `yaml:"database"`
 	Queue    Queue    `yaml:"queue"`
 	Vault    Vault    `yaml:"vault"`
+	Env     string    `yaml:"env"` // Environment (e.g., development, production)
 }
 
 // App structure

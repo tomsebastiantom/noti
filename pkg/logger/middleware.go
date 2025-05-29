@@ -1,8 +1,10 @@
 package logger
 
 import (
-    "net/http"
-    "time"
+	"context"
+	"fmt"
+	"net/http"
+	"time"
 )
 
 // HTTPLogger middleware for logging HTTP requests

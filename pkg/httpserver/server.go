@@ -25,12 +25,12 @@ type Server struct {
     notify          chan error
     shutdownTimeout time.Duration
     Router          *chi.Mux
-    logger          *logger.Logger  // Add this line
+    logger          logger.Logger  // Add this line
 }
 
 
 // New creates a new HTTP server.
-func New(cfg *config.Config, router *chi.Mux,logger *logger.Logger) (*Server, error) {
+func New(cfg *config.Config, router *chi.Mux,logger logger.Logger) (*Server, error) {
 	server := prepareHttpServer(cfg, router,logger)
 
     err:= server.Start()
@@ -40,7 +40,7 @@ func New(cfg *config.Config, router *chi.Mux,logger *logger.Logger) (*Server, er
 	return server,nil
 }
 
-func prepareHttpServer(cfg *config.Config, router *chi.Mux,logger *logger.Logger) *Server {
+func prepareHttpServer(cfg *config.Config, router *chi.Mux,logger logger.Logger) *Server {
 	httpServer := &http.Server{
 		Handler:      router,
 		ReadTimeout:  _defaultReadTimeout,

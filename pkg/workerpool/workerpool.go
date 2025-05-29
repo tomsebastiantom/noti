@@ -127,42 +127,46 @@ func (wp *WorkerPool) monitorAndScale() {
 }
 
 func (wp *WorkerPool) scale() {
-	wp.scaleMu.Lock()
-	defer wp.scaleMu.Unlock()
+    wp.scaleMu.Lock()
+    defer wp.scaleMu.Unlock()
 
-	queueSize := len(wp.jobs)
-	currentWorkers := wp.workers
+    queueSize := len(wp.jobs)
+    currentWorkers := wp.workers
 
-	desiredWorkers := int(float64(queueSize) * wp.config.ScaleFactor)
-	if desiredWorkers < wp.config.MinWorkers {
-		desiredWorkers = wp.config.MinWorkers
-	} else if desiredWorkers > wp.config.MaxWorkers {
-		desiredWorkers = wp.config.MaxWorkers
-	}
+    desiredWorkers := int(float64(queueSize) * wp.config.ScaleFactor)
+    if desiredWorkers < wp.config.MinWorkers {
+        desiredWorkers = wp.config.MinWorkers
+    } else if desiredWorkers > wp.config.MaxWorkers {
+        desiredWorkers = wp.config.MaxWorkers
+    }
 
-	if time.Since(wp.lastJobTime) > wp.config.IdleTimeout && currentWorkers > wp.config.MinWorkers {
-		desiredWorkers = wp.config.MinWorkers
-	}
+    if time.Since(wp.lastJobTime) > wp.config.IdleTimeout && currentWorkers > wp.config.MinWorkers {
+        desiredWorkers = wp.config.MinWorkers
+    }
 
-	delta := desiredWorkers - currentWorkers
+    delta := desiredWorkers - currentWorkers
 
-	if delta != 0 && wp.checkSystemResources() {
-		if delta > 0 {
-			for i := 0; i < delta; i++ {
-				wp.wg.Add(1)
-				go wp.worker()
-			}
-		} else {
-			for i := 0; i < -delta; i++ {
-				wp.cancel()
-			}
-			ctx, cancel := context.WithCancel(wp.ctx)
-			wp.ctx = ctx
-			wp.cancel = cancel
-		}
-		wp.workers += delta
-		wp.logger.Info("Scaled worker pool %s from %d to %d workers", wp.config.Name, currentWorkers, wp.workers)
-	}
+    if delta != 0 && wp.checkSystemResources() {
+        if delta > 0 {
+            for i := 0; i < delta; i++ {
+                wp.wg.Add(1)
+                go wp.worker()
+            }
+        } else {
+            for i := 0; i < -delta; i++ {
+                wp.cancel()
+            }
+            ctx, cancel := context.WithCancel(wp.ctx)
+            wp.ctx = ctx
+            wp.cancel = cancel
+        }
+        wp.workers += delta
+        // ✅ Fixed: Use structured logging
+        wp.logger.Info("Scaled worker pool", 
+            logger.Field{Key: "pool_name", Value: wp.config.Name},
+            logger.Field{Key: "from_workers", Value: currentWorkers},
+            logger.Field{Key: "to_workers", Value: wp.workers})
+    }
 }
 
 func (wp *WorkerPool) checkSystemResources() bool {
@@ -227,38 +231,42 @@ func (wpm *WorkerPoolManager) RemovePool(name string) {
 }
 
 func (wpm *WorkerPoolManager) ScalePool(name string, newWorkerCount int) error {
-	pool, exists := wpm.GetPool(name)
-	if !exists {
-		return fmt.Errorf("pool %s does not exist", name)
-	}
-	
-	pool.scaleMu.Lock()
-	defer pool.scaleMu.Unlock()
+    pool, exists := wpm.GetPool(name)
+    if !exists {
+        return fmt.Errorf("pool %s does not exist", name)
+    }
+    
+    pool.scaleMu.Lock()
+    defer pool.scaleMu.Unlock()
 
-	if newWorkerCount < pool.config.MinWorkers || newWorkerCount > pool.config.MaxWorkers {
-		return fmt.Errorf("new worker count %d is outside allowed range [%d, %d]", newWorkerCount, pool.config.MinWorkers, pool.config.MaxWorkers)
-	}
+    if newWorkerCount < pool.config.MinWorkers || newWorkerCount > pool.config.MaxWorkers {
+        return fmt.Errorf("new worker count %d is outside allowed range [%d, %d]", newWorkerCount, pool.config.MinWorkers, pool.config.MaxWorkers)
+    }
 
-	currentWorkers := pool.workers
-	delta := newWorkerCount - currentWorkers
+    currentWorkers := pool.workers
+    delta := newWorkerCount - currentWorkers
 
-	if delta > 0 {
-		for i := 0; i < delta; i++ {
-			pool.wg.Add(1)
-			go pool.worker()
-		}
-	} else if delta < 0 {
-		for i := 0; i < -delta; i++ {
-			pool.cancel()
-		}
-		ctx, cancel := context.WithCancel(pool.ctx)
-		pool.ctx = ctx
-		pool.cancel = cancel
-	}
+    if delta > 0 {
+        for i := 0; i < delta; i++ {
+            pool.wg.Add(1)
+            go pool.worker()
+        }
+    } else if delta < 0 {
+        for i := 0; i < -delta; i++ {
+            pool.cancel()
+        }
+        ctx, cancel := context.WithCancel(pool.ctx)
+        pool.ctx = ctx
+        pool.cancel = cancel
+    }
 
-	pool.workers = newWorkerCount
-	pool.logger.Info("Scaled worker pool %s from %d to %d workers", name, currentWorkers, newWorkerCount)
-	return nil
+    pool.workers = newWorkerCount
+    // ✅ Fixed: Use structured logging
+    pool.logger.Info("Scaled worker pool", 
+        logger.Field{Key: "pool_name", Value: name},
+        logger.Field{Key: "from_workers", Value: currentWorkers},
+        logger.Field{Key: "to_workers", Value: newWorkerCount})
+    return nil
 }
 
 func (wpm *WorkerPoolManager) ScaleAllPools() {

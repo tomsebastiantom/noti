@@ -21,11 +21,11 @@ type Manager struct {
 	cache  *cache.GenericCache
 	mutex  sync.Mutex
 	config *config.Config
-	logger *logger.Logger
+	logger logger.Logger
 }
 
 // NewManager creates a new Manager instance.
-func NewManager(cache *cache.GenericCache, vaultConfig *vault.VaultConfig, config *config.Config, logger *logger.Logger) *Manager {
+func NewManager(cache *cache.GenericCache, vaultConfig *vault.VaultConfig, config *config.Config, logger logger.Logger) *Manager {
 	return &Manager{
 		cache:  cache,
 		logger: logger,

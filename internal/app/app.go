@@ -1,24 +1,24 @@
 package app
 
 import (
-    "context"
-    "fmt"
-    "os"
-    "os/signal"
-    "syscall"
-    "time"
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-    "getnoti.com/config"
-    "getnoti.com/internal/server"
-    "getnoti.com/internal/server/router"
-    "getnoti.com/pkg/cache"
-    "getnoti.com/pkg/db"
-    "getnoti.com/pkg/errors"
-    "getnoti.com/pkg/logger"
-    "getnoti.com/pkg/migration"
-    "getnoti.com/pkg/queue"
-    "getnoti.com/pkg/vault"
-    "getnoti.com/pkg/workerpool"
+	"getnoti.com/config"
+	"getnoti.com/internal/server"
+	"getnoti.com/internal/server/router"
+	"getnoti.com/pkg/cache"
+	"getnoti.com/pkg/db"
+	"getnoti.com/pkg/errors"
+	"getnoti.com/pkg/logger"
+	"getnoti.com/pkg/migration"
+	"getnoti.com/pkg/queue"
+	"getnoti.com/pkg/vault"
+	"getnoti.com/pkg/workerpool"
 )
 
 type App struct {
@@ -52,7 +52,7 @@ func (a *App) initialize() error {
     a.logger.Info("Application initialization started",
         logger.String("service", a.config.App.Name),
         logger.String("version", a.config.App.Version),
-        logger.String("environment", a.config.App.Env),
+        logger.String("environment", a.config.Env),
     )
 
     a.cache = cache.NewGenericCache(1e7, 1<<30, 64)
@@ -104,7 +104,7 @@ func (a *App) Run() error {
     
     a.logger.InfoContext(ctx, "Starting notification service",
         logger.String("port", a.config.HTTP.Port),
-        logger.String("environment", a.config.App.Env),
+        logger.String("environment", a.config.Env),
         logger.String("version", a.config.App.Version),
     )
 
@@ -207,13 +207,27 @@ func (a *App) Cleanup() error {
 }
 
 func (a *App) HealthCheck(ctx context.Context) error {
+    // Check database health
     if err := a.mainDB.Ping(ctx); err != nil {
         return errors.DatabaseError(ctx, "health_check", err)
     }
 
+    // Check queue manager health
     if !a.queueManager.IsHealthy() {
-        return errors.QueueError(ctx, "health_check", 
-            fmt.Errorf("queue manager is not healthy"))
+        return errors.New(errors.ErrCodeInternal).
+            WithContext(ctx).
+            WithOperation("health_check").
+            WithMessage("Queue manager is not healthy").
+            Build()
+    }
+
+    // Check worker pool manager health
+    if !a.workerPoolManager.IsHealthy() {
+        return errors.New(errors.ErrCodeInternal).
+            WithContext(ctx).
+            WithOperation("health_check").
+            WithMessage("Worker pool manager is not healthy").
+            Build()
     }
 
     a.logger.DebugContext(ctx, "Health check passed")

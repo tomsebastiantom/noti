@@ -5,11 +5,12 @@ import (
     "io"
     "os"
     "strings"
-    "time"
-    
+
+
     "getnoti.com/config"
     "github.com/rs/zerolog"
     "go.opentelemetry.io/otel"
+    "go.opentelemetry.io/otel/codes" 
     "go.opentelemetry.io/otel/trace"
 )
 
@@ -31,7 +32,7 @@ func New(cfg *config.Config) Logger {
         Service:     cfg.App.Name,
         Version:     cfg.App.Version,
         Environment: getEnv(cfg),
-        EnableColor: cfg.App.Env != "production",
+        EnableColor: cfg.Env != "production",
         EnableCaller: true,
         EnableTrace: true,
     }
@@ -123,7 +124,7 @@ func (l *ZerologLogger) ErrorContext(ctx context.Context, msg string, fields ...
     
     // Add error to current span if exists
     if span := trace.SpanFromContext(ctx); span.IsRecording() {
-        span.SetStatus(trace.StatusError, msg)
+        span.SetStatus(codes.Error, msg)  // Fixed: Use codes.Error instead of trace.StatusError
     }
 }
 
@@ -154,8 +155,8 @@ func parseLogLevel(level string) zerolog.Level {
 }
 
 func getEnv(cfg *config.Config) string {
-    if cfg.App.Env != "" {
-        return cfg.App.Env
+    if cfg.Env != "" {
+        return cfg.Env
     }
     return "development"
 }
