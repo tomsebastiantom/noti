@@ -1,105 +1,55 @@
 package logger
 
 import (
-	"fmt"
-	"os"
-	"strings"
-
-	"getnoti.com/config"
-
-	"github.com/rs/zerolog"
+    "context"
+    "time"
+    
+    "github.com/rs/zerolog"
+    "go.opentelemetry.io/otel/trace"
 )
 
-// Interface -.
-type Interface interface {
-	Debug(message interface{}, args ...interface{})
-	Info(message string, args ...interface{})
-	Warn(message string, args ...interface{})
-	Error(message interface{}, args ...interface{})
-	Fatal(message interface{}, args ...interface{})
+// Logger interface for structured logging with tracing
+type Logger interface {
+    // Basic logging methods
+    Debug(msg string, fields ...Field)
+    Info(msg string, fields ...Field)
+    Warn(msg string, fields ...Field)
+    Error(msg string, fields ...Field)
+    Fatal(msg string, fields ...Field)
+    
+    // Context-aware logging (with automatic tracing)
+    DebugContext(ctx context.Context, msg string, fields ...Field)
+    InfoContext(ctx context.Context, msg string, fields ...Field)
+    WarnContext(ctx context.Context, msg string, fields ...Field)
+    ErrorContext(ctx context.Context, msg string, fields ...Field)
+    
+    // Span-aware logging
+    StartSpan(ctx context.Context, operationName string, fields ...Field) (context.Context, trace.Span)
+    EndSpan(span trace.Span, err error, fields ...Field)
+    
+    // Error-specific logging
+    LogError(err error, fields ...Field)
+    LogErrorContext(ctx context.Context, err error, fields ...Field)
+    
+    // Child logger with persistent fields
+    With(fields ...Field) Logger
+    WithContext(ctx context.Context) Logger
+    
+    // Performance logging
+    WithLatency(start time.Time) Logger
+    LogDuration(operationName string, start time.Time, fields ...Field)
+    
+    // Raw access for advanced use
+    Raw() *zerolog.Logger
 }
 
-// Logger -.
-type Logger struct {
-	logger *zerolog.Logger
-}
-
-var _ Interface = (*Logger)(nil)
-
-// New -.
-func New(cfg *config.Config) *Logger {
-	var l zerolog.Level
-
-	switch strings.ToLower(cfg.Log.Level) {
-	case "error":
-		l = zerolog.ErrorLevel
-	case "warn":
-		l = zerolog.WarnLevel
-	case "info":
-		l = zerolog.InfoLevel
-	case "debug":
-		l = zerolog.DebugLevel
-	default:
-		l = zerolog.InfoLevel
-	}
-
-	zerolog.SetGlobalLevel(l)
-
-	skipFrameCount := 3
-	logger := zerolog.New(os.Stdout).With().Timestamp().CallerWithSkipFrameCount(
-		zerolog.CallerSkipFrameCount + skipFrameCount).Logger()
-
-	return &Logger{
-		logger: &logger,
-	}
-}
-
-// Debug -.
-func (l *Logger) Debug(message interface{}, args ...interface{}) {
-	l.msg("debug", message, args...)
-}
-
-// Info -.
-func (l *Logger) Info(message string, args ...interface{}) {
-	l.log(message, args...)
-}
-
-// Warn -.
-func (l *Logger) Warn(message string, args ...interface{}) {
-	l.log(message, args...)
-}
-
-// Error -.
-func (l *Logger) Error(message interface{}, args ...interface{}) {
-	if l.logger.GetLevel() == zerolog.DebugLevel {
-		l.Debug(message, args...)
-	}
-
-	l.msg("error", message, args...)
-}
-
-// Fatal -.
-func (l *Logger) Fatal(message interface{}, args ...interface{}) {
-	l.msg("fatal", message, args...)
-
-	os.Exit(1)
-}
-
-func (l *Logger) log(message string, args ...interface{}) {
-	if len(args) == 0 {
-		l.logger.Info().Msg(message)
-	} else {
-		l.logger.Info().Msgf(message, args...)
-	}
-}
-
-func (l *Logger) msg(level string, message interface{}, args ...interface{}) {
-	switch msg := message.(type) {
-	case error:
-		l.log(msg.Error(), args...)
-	case string:
-		l.log(msg, args...)
-	default:
-		l.log(fmt.Sprintf("%s message %v has unknown type %v", level, message, msg), args...)
-	}
+// LoggerConfig holds configuration for logger
+type LoggerConfig struct {
+    Level       string
+    Service     string
+    Version     string
+    Environment string
+    EnableColor bool
+    EnableCaller bool
+    EnableTrace bool
 }

@@ -14,30 +14,22 @@ services:
     volumes:
       - vault-data:/vault/file
     networks:
-      - vault-network
+      - app-network
 
   rabbitmq:
-    image: cloudamqp/rabbitmq:1.3.0
+    image: rabbitmq:3-management
     container_name: rabbitmq
     ports:
       - "5672:5672"
-      - "15672:15672"  # Management UI
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
     networks:
-      - vault-network
-
-  go-backend:
-    build: ./path-to-your-go-backend  # Update this path to your Go backend Dockerfile
-    container_name: go-backend
-    ports:
-      - "8080:8080"  # Change this port if needed
-    depends_on:
-      - vault
-      - rabbitmq
-    networks:
-      - vault-network
+      - app-network
 
 volumes:
   vault-data:
 
 networks:
-  vault-network:
+  app-network:

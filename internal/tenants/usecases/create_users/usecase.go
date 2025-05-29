@@ -9,10 +9,6 @@ type CreateUsersUseCase interface {
     Execute(ctx context.Context, input CreateUsersRequest) (CreateUsersResponse, error)
 }
 
-
-
-
-
 type createUsersUseCase struct {
     repo repository.UserRepository
 }

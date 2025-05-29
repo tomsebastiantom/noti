@@ -20,7 +20,6 @@ const (
 )
 
 // Server -.
-// Server -.
 type Server struct {
     server          *http.Server
     notify          chan error
@@ -69,7 +68,6 @@ func (s *Server) Start() error {
 	}
 	return nil
 }
-
 
 
 // Notify returns a channel to notify when the server is closed.
