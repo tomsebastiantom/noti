@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"getnoti.com/pkg/logger"
+	log "getnoti.com/pkg/logger"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
 )
@@ -38,7 +38,7 @@ type WorkerPool struct {
     scaleMu       sync.RWMutex  // Use RWMutex for better concurrency
     lastJobTime   time.Time
     scalingTicker *time.Ticker
-    logger        logger.Logger
+    logger        log.Logger
     metrics       *Metrics
     metricsMu     sync.RWMutex  // Separate mutex for metrics
     state         int32         // 0: running, 1: stopping, 2: stopped
@@ -57,13 +57,13 @@ type Metrics struct {
 type WorkerPoolManager struct {
     pools    map[string]*WorkerPool
     mu       sync.RWMutex  // Use RWMutex for better read concurrency
-    logger   logger.Logger
+    logger   log.Logger
     shutdown chan struct{}
     once     sync.Once
 }
 
 // NewWorkerPoolManager creates a new worker pool manager
-func NewWorkerPoolManager(logger logger.Logger) *WorkerPoolManager {
+func NewWorkerPoolManager(logger log.Logger) *WorkerPoolManager {
     return &WorkerPoolManager{
         pools:    make(map[string]*WorkerPool),
         logger:   logger,
@@ -71,7 +71,7 @@ func NewWorkerPoolManager(logger logger.Logger) *WorkerPoolManager {
     }
 }
 
-func NewWorkerPool(config WorkerPoolConfig, logger logger.Logger) *WorkerPool {
+func NewWorkerPool(config WorkerPoolConfig, logger log.Logger) *WorkerPool {
     ctx, cancel := context.WithCancel(context.Background())
     
     // Set default shutdown timeout if not provided
@@ -87,7 +87,7 @@ func NewWorkerPool(config WorkerPoolConfig, logger logger.Logger) *WorkerPool {
         cancel:        cancel,
         lastJobTime:   time.Now(),
         scalingTicker: time.NewTicker(config.ScaleInterval),
-        logger:        logger.With(logger.String("pool_name", config.Name)),
+        logger:        logger.With(log.String("pool_name", config.Name)),
         metrics: &Metrics{
             CreatedAt: time.Now(),
         },
@@ -95,10 +95,10 @@ func NewWorkerPool(config WorkerPoolConfig, logger logger.Logger) *WorkerPool {
     }
     
     wp.logger.Info("Creating worker pool",
-        logger.Int("initial_workers", config.InitialWorkers),
-        logger.Int("max_jobs", config.MaxJobs),
-        logger.Int("min_workers", config.MinWorkers),
-        logger.Int("max_workers", config.MaxWorkers))
+        log.Int("initial_workers", config.InitialWorkers),
+        log.Int("max_jobs", config.MaxJobs),
+        log.Int("min_workers", config.MinWorkers),
+        log.Int("max_workers", config.MaxWorkers))
     
     wp.Start()
     go wp.monitorAndScale()
@@ -119,7 +119,7 @@ func (wp *WorkerPool) Start() {
     }
     
     wp.logger.Info("Worker pool started",
-        logger.Field{Key: "workers_started", Value: initialWorkers})
+        log.Field{Key: "workers_started", Value: initialWorkers})
 }
 
 // worker is the main worker goroutine with enhanced error handling
@@ -127,16 +127,16 @@ func (wp *WorkerPool) worker(workerID int) {
     defer wp.wg.Done()
     
     wp.logger.Debug("Worker started",
-        logger.Field{Key: "worker_id", Value: workerID})
+        log.Field{Key: "worker_id", Value: workerID})
     
     defer func() {
         if r := recover(); r != nil {
             wp.logger.Error("Worker panic recovered",
-                logger.Field{Key: "worker_id", Value: workerID},
-                logger.Field{Key: "panic", Value: fmt.Sprintf("%v", r)})
+                log.Field{Key: "worker_id", Value: workerID},
+                log.Field{Key: "panic", Value: fmt.Sprintf("%v", r)})
         }
         wp.logger.Debug("Worker stopped",
-            logger.Field{Key: "worker_id", Value: workerID})
+            log.Field{Key: "worker_id", Value: workerID})
     }()
     
     for {
@@ -144,7 +144,7 @@ func (wp *WorkerPool) worker(workerID int) {
         case job, ok := <-wp.jobs:
             if !ok {
                 wp.logger.Debug("Job channel closed, worker exiting",
-                    logger.Field{Key: "worker_id", Value: workerID})
+                    log.Field{Key: "worker_id", Value: workerID})
                 return
             }
             
@@ -152,7 +152,7 @@ func (wp *WorkerPool) worker(workerID int) {
             
         case <-wp.ctx.Done():
             wp.logger.Debug("Context cancelled, worker exiting",
-                logger.Field{Key: "worker_id", Value: workerID})
+                log.Field{Key: "worker_id", Value: workerID})
             return
         }
     }
@@ -167,7 +167,7 @@ func (wp *WorkerPool) processJob(job Job, workerID int) {
     defer cancel()
     
     wp.logger.Debug("Processing job",
-        logger.Field{Key: "worker_id", Value: workerID})
+        log.Field{Key: "worker_id", Value: workerID})
     
     err := job.Process(jobCtx)
     processingTime := time.Since(startTime)
@@ -177,13 +177,13 @@ func (wp *WorkerPool) processJob(job Job, workerID int) {
     
     if err != nil {
         wp.logger.Error("Job processing failed",
-            logger.Field{Key: "worker_id", Value: workerID},
-            logger.Field{Key: "error", Value: err.Error()},
-            logger.Field{Key: "processing_time", Value: processingTime.String()})
+            log.Field{Key: "worker_id", Value: workerID},
+            log.Field{Key: "error", Value: err.Error()},
+            log.Field{Key: "processing_time", Value: processingTime.String()})
     } else {
         wp.logger.Debug("Job completed successfully",
-            logger.Field{Key: "worker_id", Value: workerID},
-            logger.Field{Key: "processing_time", Value: processingTime.String()})
+            log.Field{Key: "worker_id", Value: workerID},
+            log.Field{Key: "processing_time", Value: processingTime.String()})
     }
 }
 
@@ -222,11 +222,11 @@ func (wp *WorkerPool) Submit(job Job) error {
     case wp.jobs <- job:
         atomic.AddInt64(&wp.metrics.JobsInQueue, 1)
         wp.logger.Debug("Job submitted successfully",
-            logger.Field{Key: "queue_size", Value: len(wp.jobs)})
+            log.Field{Key: "queue_size", Value: len(wp.jobs)})
         return nil
     default:
         wp.logger.Warn("Job queue is full, rejecting job",
-            logger.Field{Key: "max_jobs", Value: wp.config.MaxJobs})
+            log.Field{Key: "max_jobs", Value: wp.config.MaxJobs})
         return fmt.Errorf("job queue is full (capacity: %d)", wp.config.MaxJobs)
     }
 }
@@ -282,9 +282,9 @@ func (wp *WorkerPool) scale() {
         }
         
         wp.logger.Info("Scaled worker pool",
-            logger.Field{Key: "from_workers", Value: currentWorkers},
-            logger.Field{Key: "to_workers", Value: desiredWorkers},
-            logger.Field{Key: "queue_size", Value: queueSize})
+            log.Field{Key: "from_workers", Value: currentWorkers},
+            log.Field{Key: "to_workers", Value: desiredWorkers},
+            log.Field{Key: "queue_size", Value: queueSize})
     }
 }
 
@@ -297,7 +297,7 @@ func (wp *WorkerPool) scaleUp(count int) {
     }
     
     wp.logger.Debug("Scaled up workers",
-        logger.Field{Key: "added_workers", Value: count})
+        log.Field{Key: "added_workers", Value: count})
 }
 
 // scaleDown reduces workers (graceful shutdown of excess workers)
@@ -310,20 +310,20 @@ func (wp *WorkerPool) scaleDown(count int) {
     }
     
     wp.logger.Debug("Scaled down workers",
-        logger.Field{Key: "removed_workers", Value: count})
+        log.Field{Key: "removed_workers", Value: count})
 }
 
 // checkSystemResources verifies system can handle more workers
 func (wp *WorkerPool) checkSystemResources() bool {
     v, err := mem.VirtualMemory()
     if err != nil {
-        wp.logger.Warn("Failed to get memory stats", logger.Field{Key: "error", Value: err.Error()})
+        wp.logger.Warn("Failed to get memory stats", log.Field{Key: "error", Value: err.Error()})
         return false
     }
     
     c, err := cpu.Percent(time.Second, false)
     if err != nil || len(c) == 0 {
-        wp.logger.Warn("Failed to get CPU stats", logger.Field{Key: "error", Value: err.Error()})
+        wp.logger.Warn("Failed to get CPU stats", log.Field{Key: "error", Value: err.Error()})
         return false
     }
     
@@ -332,8 +332,8 @@ func (wp *WorkerPool) checkSystemResources() bool {
     
     if !memOK || !cpuOK {
         wp.logger.Warn("System resources constrained",
-            logger.Field{Key: "memory_percent", Value: v.UsedPercent},
-            logger.Field{Key: "cpu_percent", Value: c[0]})
+            log.Field{Key: "memory_percent", Value: v.UsedPercent},
+            log.Field{Key: "cpu_percent", Value: c[0]})
     }
     
     return memOK && cpuOK
@@ -449,12 +449,12 @@ func (wpm *WorkerPoolManager) GetOrCreatePool(config WorkerPoolConfig) *WorkerPo
     
     if pool, exists := wpm.pools[config.Name]; exists {
         wpm.logger.Debug("Returning existing worker pool",
-            logger.Field{Key: "pool_name", Value: config.Name})
+            log.Field{Key: "pool_name", Value: config.Name})
         return pool
     }
     
     wpm.logger.Info("Creating new worker pool",
-        logger.Field{Key: "pool_name", Value: config.Name})
+        log.Field{Key: "pool_name", Value: config.Name})
     
     pool := NewWorkerPool(config, wpm.logger)
     wpm.pools[config.Name] = pool
@@ -480,12 +480,12 @@ func (wpm *WorkerPoolManager) RemovePool(name string) error {
     }
     
     wpm.logger.Info("Removing worker pool",
-        logger.Field{Key: "pool_name", Value: name})
+        log.Field{Key: "pool_name", Value: name})
     
     if err := pool.Stop(); err != nil {
         wpm.logger.Error("Failed to stop worker pool during removal",
-            logger.Field{Key: "pool_name", Value: name},
-            logger.Field{Key: "error", Value: err.Error()})
+            log.Field{Key: "pool_name", Value: name},
+            log.Field{Key: "error", Value: err.Error()})
         return err
     }
     
@@ -518,8 +518,8 @@ func (wpm *WorkerPoolManager) ScalePool(name string, newWorkerCount int) error {
     }
     
     pool.logger.Info("Manually scaled worker pool",
-        logger.Field{Key: "from_workers", Value: currentWorkers},
-        logger.Field{Key: "to_workers", Value: newWorkerCount})
+        log.Field{Key: "from_workers", Value: currentWorkers},
+        log.Field{Key: "to_workers", Value: newWorkerCount})
     
     return nil
 }
@@ -530,14 +530,14 @@ func (wpm *WorkerPoolManager) ScaleAllPools() {
     defer wpm.mu.RUnlock()
     
     wpm.logger.Debug("Scaling all worker pools",
-        logger.Field{Key: "pool_count", Value: len(wpm.pools)})
+        log.Field{Key: "pool_count", Value: len(wpm.pools)})
     
     for name, pool := range wpm.pools {
         if atomic.LoadInt32(&pool.state) == 0 { // only scale running pools
             pool.scale()
         } else {
             wpm.logger.Debug("Skipping scaling for non-running pool",
-                logger.Field{Key: "pool_name", Value: name})
+                log.Field{Key: "pool_name", Value: name})
         }
     }
 }
@@ -552,7 +552,7 @@ func (wpm *WorkerPoolManager) Shutdown() error {
     defer wpm.mu.Unlock()
     
     wpm.logger.Info("Shutting down all worker pools",
-        logger.Field{Key: "pool_count", Value: len(wpm.pools)})
+        log.Field{Key: "pool_count", Value: len(wpm.pools)})
     
     var shutdownErrors []error
     shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -579,16 +579,16 @@ func (wpm *WorkerPoolManager) Shutdown() error {
         case result := <-resultChan:
             if result.err != nil {
                 wpm.logger.Error("Failed to stop worker pool",
-                    logger.Field{Key: "pool_name", Value: result.name},
-                    logger.Field{Key: "error", Value: result.err.Error()})
+                    log.Field{Key: "pool_name", Value: result.name},
+                    log.Field{Key: "error", Value: result.err.Error()})
                 shutdownErrors = append(shutdownErrors, result.err)
             } else {
                 wpm.logger.Debug("Worker pool stopped successfully",
-                    logger.Field{Key: "pool_name", Value: result.name})
+                    log.Field{Key: "pool_name", Value: result.name})
             }
         case <-shutdownCtx.Done():
             wpm.logger.Error("Timeout waiting for worker pool shutdown",
-                logger.Field{Key: "timeout", Value: "30s"})
+                log.Field{Key: "timeout", Value: "30s"})
             shutdownErrors = append(shutdownErrors, context.DeadlineExceeded)
         }
     }
@@ -600,7 +600,7 @@ func (wpm *WorkerPoolManager) Shutdown() error {
     
     if len(shutdownErrors) > 0 {
         wpm.logger.Error("Worker pool shutdown completed with errors",
-            logger.Field{Key: "error_count", Value: len(shutdownErrors)})
+            log.Field{Key: "error_count", Value: len(shutdownErrors)})
         return fmt.Errorf("failed to shutdown %d worker pools", len(shutdownErrors))
     }
     
@@ -616,7 +616,7 @@ func (wpm *WorkerPoolManager) IsHealthy() bool {
     for name, pool := range wpm.pools {
         if !pool.IsHealthy() {
             wpm.logger.Warn("Unhealthy worker pool detected",
-                logger.Field{Key: "pool_name", Value: name})
+                log.Field{Key: "pool_name", Value: name})
             return false
         }
     }

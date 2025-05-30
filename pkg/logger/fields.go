@@ -36,9 +36,9 @@ func Any(key string, value interface{}) Field {
     return Field{Key: key, Value: value} 
 }
 
-// Common application field constructors
-func Error(err error) Field { 
-    return Field{Key: "error", Value: err} 
+
+func Err(err error) Field {
+    return Field{Key: "error", Value: err}
 }
 
 func TraceID(traceID string) Field { 

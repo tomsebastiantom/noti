@@ -14,6 +14,7 @@ import (
 	templatesrepo "getnoti.com/internal/templates/repos/implementations"
 	templates "getnoti.com/internal/templates/services"
 	"getnoti.com/pkg/cache"
+	"getnoti.com/pkg/credentials"
 	"getnoti.com/pkg/db"
 	"getnoti.com/pkg/queue"
 	"getnoti.com/pkg/workerpool"
@@ -24,14 +25,16 @@ type Handlers struct {
 	BaseHandler       *handler.BaseHandler
 	GenericCache      *cache.GenericCache
 	QueueManager      *queue.QueueManager
+	CredentialManager  *credentials.Manager
 	WorkerPoolManager *workerpool.WorkerPoolManager
 }
 
-func NewHandlers(baseHandler *handler.BaseHandler, genericCache *cache.GenericCache, queueManager *queue.QueueManager, wpm *workerpool.WorkerPoolManager) *Handlers {
+func NewHandlers(baseHandler *handler.BaseHandler, genericCache *cache.GenericCache, queueManager *queue.QueueManager, credentialManager  *credentials.Manager,wpm *workerpool.WorkerPoolManager) *Handlers {
 	return &Handlers{
 		BaseHandler:       baseHandler,
 		GenericCache:      genericCache,
 		QueueManager:      queueManager,
+		CredentialManager: credentialManager,
 		WorkerPoolManager: wpm,
 	}
 }
@@ -58,7 +61,7 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	providerRepo := providerrepos.NewProviderRepository(database)
 
 	// Initialize services
-	providerFactory := providers.NewProviderFactory(h.GenericCache, providerRepo)
+	providerFactory := providers.NewProviderFactory(h.GenericCache, providerRepo,h.CredentialManager)
 	providerService := providerService.NewProviderService(providerFactory, notificationQueue, h.WorkerPoolManager)
 	templateService := templates.NewTemplateService(templatesRepo)
 
@@ -89,9 +92,9 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	h.BaseHandler.RespondWithJSON(w, res)
 }
 
-func NewRouter(dbManager *db.Manager, providerCache *cache.GenericCache, queueManager *queue.QueueManager, wpm *workerpool.WorkerPoolManager) *chi.Mux {
+func NewRouter(dbManager *db.Manager, providerCache *cache.GenericCache, queueManager *queue.QueueManager, credentialManager  *credentials.Manager,wpm *workerpool.WorkerPoolManager) *chi.Mux {
 	b := handler.NewBaseHandler(dbManager)
-	h := NewHandlers(b, providerCache, queueManager, wpm)
+	h := NewHandlers(b, providerCache, queueManager, credentialManager,wpm)
 
 	r := chi.NewRouter()
 

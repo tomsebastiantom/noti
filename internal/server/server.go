@@ -11,14 +11,14 @@ type Server struct {
     config     *config.Config
     router     *chi.Mux
     httpServer *httpserver.Server
-    logger     logger.Logger  // ✅ Fixed: Use interface, not pointer
+    logger     logger.Logger 
 }
 
-func New(cfg *config.Config, r *chi.Mux, l logger.Logger) *Server {  // ✅ Fixed: Removed extra space
+func New(cfg *config.Config, r *chi.Mux, l logger.Logger) *Server {  
     return &Server{
         config: cfg,
         router: r,
-        logger: l,  // ✅ Fixed: Removed colon syntax error
+        logger: l, 
     }
 }
 
@@ -32,7 +32,7 @@ func (s *Server) Start() error {
     s.httpServer, err = httpserver.New(s.config, s.router, s.logger)
 
     if err != nil {
-        // ✅ Fixed: Use structured logging
+
         s.logger.Error("Failed to start HTTP server",
             logger.Field{Key: "error", Value: err.Error()},
         )

@@ -2,7 +2,6 @@ package logger
 
 import (
     "context"
-    "time"
     
     "go.uber.org/zap"
     "go.uber.org/zap/zapcore"
@@ -10,15 +9,14 @@ import (
     "getnoti.com/config"
 )
 
-// Field represents a structured logging field
 type Field struct {
     Key   string
     Value interface{}
 }
 
-// Logger interface - complete interface
+
 type Logger interface {
-    // Basic logging
+
     Debug(msg string, fields ...Field)
     Info(msg string, fields ...Field)
     Warn(msg string, fields ...Field)
@@ -31,21 +29,20 @@ type Logger interface {
     WarnContext(ctx context.Context, msg string, fields ...Field)
     ErrorContext(ctx context.Context, msg string, fields ...Field)
     
-    // ✅ ADD MISSING ERROR LOGGING METHODS
+
     LogError(err error, fields ...Field)
     LogErrorContext(ctx context.Context, err error, fields ...Field)
     
-    // Child logger
+ 
     With(fields ...Field) Logger
-    
-    // Field helpers (like Zap)
-    String(key, value string) Field
-    Int(key string, value int) Field
-    Int64(key string, value int64) Field
-    Float64(key string, value float64) Field
-    Bool(key string, value bool) Field
-    Duration(key string, value time.Duration) Field
-    Any(key string, value interface{}) Field
+  
+    // String(key, value string) Field
+    // Int(key string, value int) Field
+    // Int64(key string, value int64) Field
+    // Float64(key string, value float64) Field
+    // Bool(key string, value bool) Field
+    // Duration(key string, value time.Duration) Field
+    // Any(key string, value interface{}) Field
 }
 
 // zapLogger implements Logger using Zap
@@ -70,7 +67,7 @@ func New(cfg *config.Config) Logger {
     }
     
     // Set log level
-    switch cfg.Log.Level {
+    switch cfg.Logger.Level {
     case "debug":
         zapConfig.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
     case "info":
@@ -144,7 +141,7 @@ func (l *zapLogger) ErrorContext(ctx context.Context, msg string, fields ...Fiel
     l.logger.Error(msg, zapFields...)
 }
 
-// ✅ ERROR LOGGING IMPLEMENTATIONS
+
 func (l *zapLogger) LogError(err error, fields ...Field) {
     zapFields := l.convertFields(fields...)
     zapFields = append(zapFields, zap.Error(err))
@@ -158,7 +155,7 @@ func (l *zapLogger) LogErrorContext(ctx context.Context, err error, fields ...Fi
     l.logger.Error("Error occurred", zapFields...)
 }
 
-// Child logger
+
 func (l *zapLogger) With(fields ...Field) Logger {
     return &zapLogger{
         logger: l.logger.With(l.convertFields(fields...)...),
@@ -166,33 +163,36 @@ func (l *zapLogger) With(fields ...Field) Logger {
 }
 
 // Field helpers - these create Field structs for your API
-func (l *zapLogger) String(key, value string) Field {
-    return Field{Key: key, Value: value}
-}
+// func (l *zapLogger) String(key, value string) Field {
+//     return Field{Key: key, Value: value}
+// }
 
-func (l *zapLogger) Int(key string, value int) Field {
-    return Field{Key: key, Value: value}
-}
+// func (l *zapLogger) Int(key string, value int) Field {
+//     return Field{Key: key, Value: value}
+// }
 
-func (l *zapLogger) Int64(key string, value int64) Field {
-    return Field{Key: key, Value: value}
-}
+// func (l *zapLogger) Int64(key string, value int64) Field {
+//     return Field{Key: key, Value: value}
+// }
 
-func (l *zapLogger) Float64(key string, value float64) Field {
-    return Field{Key: key, Value: value}
-}
+// func (l *zapLogger) Float64(key string, value float64) Field {
+//     return Field{Key: key, Value: value}
+// }
 
-func (l *zapLogger) Bool(key string, value bool) Field {
-    return Field{Key: key, Value: value}
-}
+// func (l *zapLogger) Bool(key string, value bool) Field {
+//     return Field{Key: key, Value: value}
+// }
 
-func (l *zapLogger) Duration(key string, value time.Duration) Field {
-    return Field{Key: key, Value: value}
-}
+// func (l *zapLogger) Duration(key string, value time.Duration) Field {
+//     return Field{Key: key, Value: value}
+// }
 
-func (l *zapLogger) Any(key string, value interface{}) Field {
-    return Field{Key: key, Value: value}
-}
+// func (l *zapLogger) Any(key string, value interface{}) Field {
+//     return Field{Key: key, Value: value}
+// }
+// func (l *zapLogger) Error(key string, value interface{}) Field {
+//     return Field{Key: key, Value: value}
+// }
 
 // Helper methods
 func (l *zapLogger) convertFields(fields ...Field) []zap.Field {

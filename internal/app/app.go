@@ -1,34 +1,35 @@
 package app
 
 import (
-	"context"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
 
-	"getnoti.com/config"
-	"getnoti.com/internal/server"
-	"getnoti.com/internal/server/router"
-	"getnoti.com/pkg/cache"
-	"getnoti.com/pkg/db"
-	"getnoti.com/pkg/errors"
-	"getnoti.com/pkg/logger"
-	"getnoti.com/pkg/migration"
-	"getnoti.com/pkg/queue"
-	"getnoti.com/pkg/vault"
-	"getnoti.com/pkg/workerpool"
+    "getnoti.com/config"
+    "getnoti.com/internal/server"
+    "getnoti.com/internal/server/router"
+    "getnoti.com/pkg/cache"
+    "getnoti.com/pkg/credentials"
+    "getnoti.com/pkg/db"
+    "getnoti.com/pkg/errors"
+    log "getnoti.com/pkg/logger"
+    "getnoti.com/pkg/migration"
+    "getnoti.com/pkg/queue"
+    "getnoti.com/pkg/workerpool"
 )
 
 type App struct {
     config            *config.Config
-    logger            logger.Logger
-    db                *db.Manager
+    logger            log.Logger
+    dbManager         *db.Manager
     mainDB            db.Database
     cache             *cache.GenericCache
     server            *server.Server
     queueManager      *queue.QueueManager
     workerPoolManager *workerpool.WorkerPoolManager
+    credentialManager *credentials.Manager
 }
 
 func New(cfg *config.Config) (*App, error) {
@@ -47,27 +48,23 @@ func (a *App) initialize() error {
     var err error
     ctx := context.Background()
 
-    // ✅ Initialize logger first
-    a.logger = logger.New(a.config)
+ 
+    a.logger = log.New(a.config)
     a.logger.Info("Application initialization started",
-        a.logger.String("service", a.config.App.Name),
-        a.logger.String("version", a.config.App.Version),
-        a.logger.String("environment", a.config.Env),
+        log.String("service", a.config.App.Name),
+        log.String("version", a.config.App.Version),
+        log.String("environment", a.config.Env),
     )
 
-    // ✅ Initialize cache
+
     a.cache = cache.NewGenericCache(1e7, 1<<30, 64)
     a.logger.Info("Cache initialized successfully")
 
-    // ✅ Initialize database manager
-    a.db = db.NewManager(a.cache, (*vault.VaultConfig)(&a.config.Vault), a.config, a.logger)
-
-    // ✅ Initialize main database with proper error handling
+  
     a.mainDB, err = db.NewDatabaseFactory(map[string]interface{}{
         "type": a.config.Database.Type,
         "dsn":  a.config.Database.DSN,
     }, a.logger)
-
     if err != nil {
         appErr := errors.DatabaseConnectionError(ctx, err)
         a.logger.LogErrorContext(ctx, appErr)
@@ -75,7 +72,7 @@ func (a *App) initialize() error {
     }
     a.logger.InfoContext(ctx, "Main database initialized successfully")
 
-    // ✅ Run migrations with proper error handling
+    
     if err := migration.Migrate(a.config.Database.DSN, a.config.Database.Type, true); err != nil {
         appErr := errors.DatabaseError(ctx, "migration", err)
         a.logger.LogErrorContext(ctx, appErr)
@@ -83,24 +80,39 @@ func (a *App) initialize() error {
     }
     a.logger.InfoContext(ctx, "Database migrations completed successfully")
 
-    // ✅ Initialize queue manager
-    a.queueManager = queue.NewQueueManager(queue.Config(a.config.Queue), a.logger)
-    a.logger.Info("Queue manager initialized successfully")
 
-    // ✅ Initialize worker pool manager
-    a.workerPoolManager = workerpool.NewWorkerPoolManager(a.logger)
-    a.logger.Info("Worker pool manager initialized successfully")
-
-    // ✅ Initialize vault with proper error handling
-    if err := vault.Initialize((*vault.VaultConfig)(&a.config.Vault)); err != nil {
-        appErr := errors.VaultError(ctx, "initialization", err)
+    a.credentialManager, err = credentials.NewManager(a.config, a.logger, a.mainDB)
+    if err != nil {
+        appErr := errors.New(errors.ErrCodeInternal).
+            WithContext(ctx).
+            WithOperation("credential_manager_initialization").
+            WithCause(err).
+            WithMessage("Failed to initialize credential manager").
+            Build()
         a.logger.LogErrorContext(ctx, appErr)
         return appErr
     }
-    a.logger.InfoContext(ctx, "Vault initialized successfully")
+    
+    storageInfo := a.credentialManager.GetStorageInfo()
+    a.logger.InfoContext(ctx, "Credential manager initialized successfully",
+        log.Bool("vault_enabled", storageInfo["vault_enabled"].(bool)),
+        log.String("storage_type", storageInfo["storage_type"].(string)))
 
-    // ✅ Initialize server
-    r := router.New(a.mainDB, a.db, a.cache, a.queueManager, a.workerPoolManager)
+   
+    a.dbManager = db.NewManager(a.cache, a.config, a.logger, a.mainDB)
+    a.dbManager.SetCredentialService(a.credentialManager)
+    a.logger.Info("Database manager initialized successfully")
+
+    
+    a.queueManager = queue.NewQueueManager(queue.Config(a.config.Queue), a.logger)
+    a.logger.Info("Queue manager initialized successfully")
+
+  
+    a.workerPoolManager = workerpool.NewWorkerPoolManager(a.logger)
+    a.logger.Info("Worker pool manager initialized successfully")
+
+
+    r := router.New(a.mainDB, a.dbManager, a.cache, a.queueManager, a.workerPoolManager, a.credentialManager)
     a.server = server.New(a.config, r.Handler(), a.logger)
 
     a.logger.Info("Application initialization completed successfully")
@@ -110,13 +122,15 @@ func (a *App) initialize() error {
 func (a *App) Run() error {
     ctx := context.Background()
     
+    storageInfo := a.credentialManager.GetStorageInfo()
     a.logger.InfoContext(ctx, "Starting notification service",
-        a.logger.String("port", a.config.HTTP.Port),
-        a.logger.String("environment", a.config.Env),
-        a.logger.String("version", a.config.App.Version),
+        log.String("port", a.config.HTTP.Port),
+        log.String("environment", a.config.Env),
+        log.String("version", a.config.App.Version),
+        log.Bool("vault_enabled", storageInfo["vault_enabled"].(bool)),
     )
 
-    // ✅ Start server in goroutine
+   
     errChan := make(chan error, 1)
     go func() {
         if err := a.server.Start(); err != nil {
@@ -124,11 +138,10 @@ func (a *App) Run() error {
         }
     }()
 
-    // ✅ Listen for shutdown signals
+  
     sigChan := make(chan os.Signal, 1)
     signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-    // ✅ Wait for either error or signal
     select {
     case err := <-errChan:
         appErr := errors.New(errors.ErrCodeInternal).
@@ -142,7 +155,7 @@ func (a *App) Run() error {
 
     case sig := <-sigChan:
         a.logger.InfoContext(ctx, "Received shutdown signal",
-            a.logger.String("signal", sig.String()),
+            log.String("signal", sig.String()),
         )
         return a.Cleanup()
     }
@@ -156,7 +169,7 @@ func (a *App) Cleanup() error {
 
     var cleanupErrors []error
 
-    // ✅ Shutdown server
+
     if a.server != nil {
         if err := a.server.Shutdown(); err != nil {
             appErr := errors.New(errors.ErrCodeInternal).
@@ -172,7 +185,7 @@ func (a *App) Cleanup() error {
         }
     }
 
-    // ✅ Shutdown worker pools
+ 
     if a.workerPoolManager != nil {
         if err := a.workerPoolManager.Shutdown(); err != nil {
             appErr := errors.New(errors.ErrCodeInternal).
@@ -188,7 +201,7 @@ func (a *App) Cleanup() error {
         }
     }
 
-    // ✅ Close queue manager
+
     if a.queueManager != nil {
         if err := a.queueManager.Close(); err != nil {
             appErr := errors.QueueConnectionError(ctx, err)
@@ -199,7 +212,16 @@ func (a *App) Cleanup() error {
         }
     }
 
-    // ✅ Close database connections
+
+    if a.dbManager != nil {
+        if err := a.dbManager.Close(); err != nil {
+            appErr := errors.DatabaseError(ctx, "manager_close", err)
+            a.logger.LogErrorContext(ctx, appErr)
+            cleanupErrors = append(cleanupErrors, appErr)
+        }
+    }
+
+
     if a.mainDB != nil {
         if err := a.mainDB.Close(); err != nil {
             appErr := errors.DatabaseError(ctx, "connection_close", err)
@@ -210,10 +232,10 @@ func (a *App) Cleanup() error {
         }
     }
 
-    // ✅ Report cleanup results
+ 
     if len(cleanupErrors) > 0 {
         a.logger.ErrorContext(ctx, "Cleanup completed with errors",
-            a.logger.Int("error_count", len(cleanupErrors)),
+            log.Int("error_count", len(cleanupErrors)),
         )
         return cleanupErrors[0]
     }
@@ -223,12 +245,21 @@ func (a *App) Cleanup() error {
 }
 
 func (a *App) HealthCheck(ctx context.Context) error {
-    // ✅ Check database health
+
     if err := a.mainDB.Ping(ctx); err != nil {
         return errors.DatabaseError(ctx, "health_check", err)
     }
 
-    // ✅ Check queue manager health
+
+    if !a.credentialManager.IsHealthy() {
+        return errors.New(errors.ErrCodeInternal).
+            WithContext(ctx).
+            WithOperation("health_check").
+            WithMessage("Credential manager is not healthy").
+            Build()
+    }
+
+
     if !a.queueManager.IsHealthy() {
         return errors.New(errors.ErrCodeInternal).
             WithContext(ctx).
@@ -237,7 +268,7 @@ func (a *App) HealthCheck(ctx context.Context) error {
             Build()
     }
 
-    // ✅ Check worker pool manager health
+
     if !a.workerPoolManager.IsHealthy() {
         return errors.New(errors.ErrCodeInternal).
             WithContext(ctx).
@@ -250,11 +281,9 @@ func (a *App) HealthCheck(ctx context.Context) error {
     return nil
 }
 
-// ✅ ADD GRACEFUL SHUTDOWN METHOD
 func (a *App) Shutdown(ctx context.Context) error {
     a.logger.InfoContext(ctx, "Initiating graceful shutdown")
     
-    // Close all components in reverse order of initialization
     if err := a.Cleanup(); err != nil {
         a.logger.ErrorContext(ctx, "Shutdown completed with errors")
         return err

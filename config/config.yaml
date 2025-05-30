@@ -1,3 +1,26 @@
+# app:
+#   name: "noti"
+#   version: "1.0.0"
+
+# http:
+#   port: "8072"
+
+# logger:
+#   log_level: "debug" 
+
+# database:
+#   type: "sqlite"
+#   dsn: "./data/noti.db"
+
+# queue:
+#   reconnect_interval: "5s"
+#   max_reconnect_attempts: 3
+#   heartbeat_interval: "30s"
+
+
+# env: "development"
+
+
 app:
   name: "noti"
   version: "1.0.0"
@@ -13,15 +36,20 @@ database:
   dsn: "./data/noti.db"
 
 queue:
+  url: ""  # Set via NOTI_QUEUE_URL environment variable
   reconnect_interval: "5s"
   max_reconnect_attempts: 3
   heartbeat_interval: "30s"
 
+vault:
+  address: ""    # Set via NOTI_VAULT_ADDRESS environment variable
+  token: ""      # Set via NOTI_VAULT_TOKEN environment variable
+  provider: "hashicorp"  # "hashicorp", "aws", "azure", "gcp"
+
+credentials:
+  storage_type: "auto"           # "vault", "database", "auto"
+  encryption_key_env: "NOTI_ENCRYPTION_KEY"
+  allow_custom_keys: true        # Allow tenants to bring their own keys
+  default_to_database: true      # Fallback to database if vault fails
 
 env: "development"
-
-# vault:
-#   address: "http://127.0.0.1:8205"
-#   #token: "hvs.CAESIER-LYOx6RcdWJETlXBx94iqUA9ZwalaQBMfXII_MyPbGh4KHGh2cy41Q1kwVU04UHVMQWlyU3R0WW44TWRkYmE"
-#   token: "hvs.L5tharyDDPICe6rh9W0gxIj3"
-
