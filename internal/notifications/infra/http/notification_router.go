@@ -3,16 +3,11 @@ package notificationroutes
 import (
 	"net/http"
 
-	"getnoti.com/internal/notifications/repos/implementations"
-	"getnoti.com/internal/notifications/usecases/send_notification"
-	"getnoti.com/internal/providers/infra/providers"
-	providerrepos "getnoti.com/internal/providers/repos/implementations"
-	providerService "getnoti.com/internal/providers/services"
+	"getnoti.com/internal/container"
+	sendnotification "getnoti.com/internal/notifications/usecases/send_notification"
 	"getnoti.com/internal/shared/handler"
 	"getnoti.com/internal/shared/middleware"
 	"getnoti.com/internal/shared/utils"
-	templatesrepo "getnoti.com/internal/templates/repos/implementations"
-	templates "getnoti.com/internal/templates/services"
 	"getnoti.com/pkg/cache"
 	"getnoti.com/pkg/credentials"
 	"getnoti.com/pkg/db"
@@ -23,15 +18,17 @@ import (
 
 type Handlers struct {
 	BaseHandler       *handler.BaseHandler
+	ServiceContainer  *container.ServiceContainer
 	GenericCache      *cache.GenericCache
 	QueueManager      *queue.QueueManager
 	CredentialManager  *credentials.Manager
 	WorkerPoolManager *workerpool.WorkerPoolManager
 }
 
-func NewHandlers(baseHandler *handler.BaseHandler, genericCache *cache.GenericCache, queueManager *queue.QueueManager, credentialManager  *credentials.Manager,wpm *workerpool.WorkerPoolManager) *Handlers {
+func NewHandlers(baseHandler *handler.BaseHandler, serviceContainer *container.ServiceContainer, genericCache *cache.GenericCache, queueManager *queue.QueueManager, credentialManager  *credentials.Manager,wpm *workerpool.WorkerPoolManager) *Handlers {
 	return &Handlers{
 		BaseHandler:       baseHandler,
+		ServiceContainer:  serviceContainer,
 		GenericCache:      genericCache,
 		QueueManager:      queueManager,
 		CredentialManager: credentialManager,
@@ -40,33 +37,34 @@ func NewHandlers(baseHandler *handler.BaseHandler, genericCache *cache.GenericCa
 }
 
 func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
+	// Get tenant ID from request context
 	tenantID := r.Context().Value(middleware.TenantIDKey).(string)
 
-	// Retrieve the database connection
-	database, err := h.BaseHandler.DBManager.GetDatabaseConnection(tenantID)
+	// Get services from container
+	providerService := h.ServiceContainer.GetProviderService()
+	templateService := h.ServiceContainer.GetTemplateService()
+
+	// Get tenant-specific repositories from container
+	notificationRepo, err := h.ServiceContainer.GetNotificationRepositoryForTenant(tenantID)
 	if err != nil {
-		h.BaseHandler.HandleError(w, "Failed to retrieve database connection", err, http.StatusInternalServerError)
+		h.BaseHandler.HandleError(w, "Failed to get notification repository", err, http.StatusInternalServerError)
+		return
+	}
+	
+	providerRepo, err := h.ServiceContainer.GetProviderRepositoryForTenant(tenantID)
+	if err != nil {
+		h.BaseHandler.HandleError(w, "Failed to get provider repository", err, http.StatusInternalServerError)
 		return
 	}
 
-	notificationQueue, err := h.QueueManager.GetOrCreateQueue(tenantID)
-	if err != nil {
-		h.BaseHandler.HandleError(w, "Failed to retrieve or create notification queue", err, http.StatusInternalServerError)
-		return
-	}
-
-	// Initialize repositories
-	notificationRepo := repos.NewNotificationRepository(database)
-	templatesRepo := templatesrepo.NewTemplateRepository(database)
-	providerRepo := providerrepos.NewProviderRepository(database)
-
-	// Initialize services
-	providerFactory := providers.NewProviderFactory(h.GenericCache, providerRepo,h.CredentialManager)
-	providerService := providerService.NewProviderService(providerFactory, notificationQueue, h.WorkerPoolManager)
-	templateService := templates.NewTemplateService(templatesRepo)
-
-	// Initialize use case
-	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(providerService, templateService, providerRepo, notificationRepo, h.GenericCache)
+	// Initialize use case with container services
+	sendNotificationUseCase := sendnotification.NewSendNotificationUseCase(
+		providerService, 
+		templateService, 
+		providerRepo, 
+		notificationRepo, 
+		h.GenericCache,
+	)
 
 	// Initialize controller
 	sendNotificationController := sendnotification.NewSendNotificationController(sendNotificationUseCase)
@@ -92,9 +90,9 @@ func (h *Handlers) SendNotification(w http.ResponseWriter, r *http.Request) {
 	h.BaseHandler.RespondWithJSON(w, res)
 }
 
-func NewRouter(dbManager *db.Manager, providerCache *cache.GenericCache, queueManager *queue.QueueManager, credentialManager  *credentials.Manager,wpm *workerpool.WorkerPoolManager) *chi.Mux {
+func NewRouter(serviceContainer *container.ServiceContainer, dbManager *db.Manager, providerCache *cache.GenericCache, queueManager *queue.QueueManager, credentialManager  *credentials.Manager,wpm *workerpool.WorkerPoolManager) *chi.Mux {
 	b := handler.NewBaseHandler(dbManager)
-	h := NewHandlers(b, providerCache, queueManager, credentialManager,wpm)
+	h := NewHandlers(b, serviceContainer, providerCache, queueManager, credentialManager,wpm)
 
 	r := chi.NewRouter()
 

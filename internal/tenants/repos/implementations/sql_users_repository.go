@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"getnoti.com/internal/tenants/domain"
 	"getnoti.com/internal/tenants/repos"
 	"getnoti.com/pkg/db"
-	"time"
 )
 
 type sqlUserRepository struct {

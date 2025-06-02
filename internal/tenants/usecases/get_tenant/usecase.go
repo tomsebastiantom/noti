@@ -10,10 +10,10 @@ type GetTenantUseCase interface {
 }
 
 type getTenantUseCase struct {
-	repo repository.TenantRepository
+	repo repository.TenantsRepository
 }
 
-func NewGetTenantUseCase(repo repository.TenantRepository) GetTenantUseCase {
+func NewGetTenantUseCase(repo repository.TenantsRepository) GetTenantUseCase {
 	return &getTenantUseCase{
 		repo: repo,
 	}

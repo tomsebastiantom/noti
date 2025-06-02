@@ -3,27 +3,34 @@ package sendnotification
 import (
 	"context"
 	"fmt"
+
 	"getnoti.com/internal/notifications/domain"
-	"getnoti.com/internal/notifications/repos"
+	notificationRepos "getnoti.com/internal/notifications/repos"
 	providerDomain "getnoti.com/internal/providers/domain"
 	"getnoti.com/internal/providers/dtos"
-	"getnoti.com/internal/providers/repos"
-	"getnoti.com/internal/providers/services"
+	providerRepos "getnoti.com/internal/providers/repos"
+	providerServices "getnoti.com/internal/providers/services"
 	"getnoti.com/internal/shared/utils"
-	"getnoti.com/internal/templates/services"
+	templateServices "getnoti.com/internal/templates/services"
 
 	"getnoti.com/pkg/cache"
 )
 
 type SendNotificationUseCase struct {
-	providerService        *providers.ProviderService
-	templateService        *templates.TemplateService
-	providerRepo           repos.ProviderRepository
-	notificationRepository repository.NotificationRepository
+	providerService        *providerServices.ProviderService
+	templateService        *templateServices.TemplateService
+	providerRepo           providerRepos.ProviderRepository
+	notificationRepository notificationRepos.NotificationRepository
 	preferencesCache       *cache.GenericCache
 }
 
-func NewSendNotificationUseCase(providerService *providers.ProviderService, templateService *templates.TemplateService, providerRepo repos.ProviderRepository, notificationRepository repository.NotificationRepository, preferencesCache *cache.GenericCache) *SendNotificationUseCase {
+func NewSendNotificationUseCase(
+	providerService *providerServices.ProviderService, 
+	templateService *templateServices.TemplateService, 
+	providerRepo providerRepos.ProviderRepository, 
+	notificationRepository notificationRepos.NotificationRepository, 
+	preferencesCache *cache.GenericCache,
+) *SendNotificationUseCase {
 	return &SendNotificationUseCase{
 		providerService:        providerService,
 		templateService:        templateService,
@@ -49,8 +56,7 @@ func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificat
 			Error:  "notification creation failed: " + err.Error(),
 		}, err
 	}
-
-	content, err := u.templateService.GetContent(ctx, notification.TemplateID, notification.Variables)
+	content, err := u.templateService.GetContent(ctx, req.TenantID, notification.TemplateID, notification.Variables)
 	if err != nil {
 		return SendNotificationResponse{
 			ID:     notification.ID,
@@ -67,16 +73,15 @@ func (u *SendNotificationUseCase) Execute(ctx context.Context, req SendNotificat
 		Content:    content,
 		ProviderID: providerID,
 	}
-
 	sendResp := u.providerService.DispatchNotification(ctx, req.TenantID, providerID, sendReq)
 	if !sendResp.Success {
 		return SendNotificationResponse{
 			ID:     notification.ID,
 			Status: "failed",
-			Error:  "notification sending failed: " + sendResp.Message, // Detailed error message
-		}, err
-
+			Error:  "notification sending failed: " + sendResp.Message,
+		}, fmt.Errorf("notification sending failed: %s", sendResp.Message)
 	}
+	
 	return SendNotificationResponse{
 		ID:     notification.ID,
 		Status: "queued",

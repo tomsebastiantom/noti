@@ -12,10 +12,10 @@ type UpdateTenantUseCase interface {
 }
 
 type updateTenantUseCase struct {
-	repo repository.TenantRepository
+	repo repository.TenantsRepository
 }
 
-func NewUpdateTenantUseCase(repo repository.TenantRepository) UpdateTenantUseCase {
+func NewUpdateTenantUseCase(repo repository.TenantsRepository) UpdateTenantUseCase {
 	return &updateTenantUseCase{
 		repo: repo,
 	}

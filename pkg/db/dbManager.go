@@ -1,16 +1,18 @@
 package db
 
 import (
-    "fmt"
-    "sync"
-    
-    "getnoti.com/config"
-    "getnoti.com/pkg/cache"
-    "getnoti.com/pkg/logger"
-    
-    _ "github.com/denisenkom/go-mssqldb" // Microsoft SQL Server driver
-    _ "github.com/go-sql-driver/mysql"   // MySQL driver
-    _ "github.com/lib/pq"                // PostgreSQL driver
+	"context"
+	"fmt"
+	"sync"
+	"time"
+
+	"getnoti.com/config"
+	"getnoti.com/pkg/cache"
+	"getnoti.com/pkg/logger"
+
+	_ "github.com/denisenkom/go-mssqldb" // Microsoft SQL Server driver
+	_ "github.com/go-sql-driver/mysql"   // MySQL driver
+	_ "github.com/lib/pq"                // PostgreSQL driver
 )
 
 // Manager manages database connections and caches them.
@@ -77,7 +79,7 @@ func (m *Manager) GetDatabaseConnectionWithConfig(tenantID string, dbConfig map[
     }
 
     cacheKey := fmt.Sprintf("%s:custom", tenantID)
-    
+
     m.mutex.Lock()
     defer m.mutex.Unlock()
 
@@ -121,7 +123,7 @@ func (m *Manager) createDatabaseConnectionFromConfig(dbConfig map[string]interfa
 
 func (m *Manager) CreateNewTenantDatabase(tenantID string) (Database, map[string]interface{}, error) {
     m.logger.Info(fmt.Sprintf("Creating new dedicated database for tenant: %s", tenantID))
-    
+
     // Create new database for tenant based on main config
     dbConfig := map[string]interface{}{
         "type": m.config.Database.Type,
@@ -156,4 +158,122 @@ func (m *Manager) Close() error {
     // Note: This would require extending the cache to track all connections
     // For now, connections will be closed when they're garbage collected
     return nil
+}
+
+// CloseAll closes all tenant database connections (alias for Close for compatibility)
+func (m *Manager) CloseAll() error {
+    return m.Close()
+}
+
+// ConnectionStats represents connection statistics for a tenant
+type ConnectionStats struct {
+    TenantID     string
+    OpenConns    int
+    IdleConns    int
+    InUseConns   int
+    WaitCount    int64
+    WaitDuration int64
+}
+
+// Enhanced connection management methods
+
+// CreateConnectionWithConfig creates a new database connection using provided config
+func (m *Manager) CreateConnectionWithConfig(tenantID string, config *DatabaseConfig) (Database, error) {
+    m.logger.Info(fmt.Sprintf("Creating database connection with config for tenant: %s", tenantID))
+
+    dsn := buildDSNFromConfig(config)
+
+    // Prepare credentials map for NewDatabaseFactory
+    credentials := map[string]interface{}{
+        "type": config.Driver,
+        "dsn":  dsn,
+    }
+
+    connection, err := NewDatabaseFactory(credentials, m.logger)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create database connection: %w", err)
+    }
+
+    // Configure connection pool
+    if sqlDB, ok := connection.(*SQLDatabase); ok {
+        sqlDB.DB.SetMaxOpenConns(config.MaxOpenConns)
+        sqlDB.DB.SetMaxIdleConns(config.MaxIdleConns)
+        sqlDB.DB.SetConnMaxLifetime(time.Duration(config.MaxLifetime) * time.Second)
+    }
+
+    // Test connection
+    ctx := context.Background()
+    if err := connection.Ping(ctx); err != nil {
+        connection.Close()
+        return nil, fmt.Errorf("failed to ping database: %w", err)
+    }
+
+    // Cache the connection
+    m.mutex.Lock()
+    m.cache.Set(tenantID, connection, 1)
+    m.mutex.Unlock()
+
+    m.logger.Info(fmt.Sprintf("Database connection created successfully for tenant: %s", tenantID))
+
+    return connection, nil
+}
+
+// HealthCheck checks the health of a tenant's database connection
+func (m *Manager) HealthCheck(tenantID string) error {
+    if dbConn, found := m.cache.Get(tenantID); found {
+        ctx := context.Background()
+        return dbConn.(Database).Ping(ctx)
+    }
+    return fmt.Errorf("no connection found for tenant: %s", tenantID)
+}
+
+// GetConnectionStats returns connection statistics for all tenants
+func (m *Manager) GetConnectionStats() map[string]ConnectionStats {
+    // This would require extending the cache to track all connections
+    // For now, return empty map
+    return make(map[string]ConnectionStats)
+}
+
+// CloseConnection closes a specific tenant's database connection
+func (m *Manager) CloseConnection(tenantID string) error {
+    m.mutex.Lock()
+    defer m.mutex.Unlock()
+
+    if dbConn, found := m.cache.Get(tenantID); found {
+        err := dbConn.(Database).Close()
+        m.cache.Delete(tenantID)
+        m.logger.Info(fmt.Sprintf("Database connection closed for tenant: %s", tenantID))
+        return err
+    }
+
+    return nil
+}
+
+// GetConnection gets a database connection for a tenant (compatibility wrapper)
+func (m *Manager) GetConnection(ctx context.Context, tenantID string) (Database, error) {
+    return m.GetDatabaseConnection(tenantID)
+}
+
+// buildDSNFromConfig builds a database connection string from DatabaseConfig
+func buildDSNFromConfig(config *DatabaseConfig) string {
+    switch config.Driver {
+    case "postgres":
+        return fmt.Sprintf(
+            "host=%s port=%d dbname=%s user=%s password=%s sslmode=%s",
+            config.Host, config.Port, config.DatabaseName,
+            config.Username, config.Password, config.SSLMode,
+        )
+    case "mysql":
+        return fmt.Sprintf(
+            "%s:%s@tcp(%s:%d)/%s",
+            config.Username, config.Password,
+            config.Host, config.Port, config.DatabaseName,
+        )
+    default:
+        return fmt.Sprintf(
+            "host=%s port=%d dbname=%s user=%s password=%s sslmode=%s",
+            config.Host, config.Port, config.DatabaseName,
+            config.Username, config.Password, config.SSLMode,
+        )
+    }
 }
