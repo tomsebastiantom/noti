@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"getnoti.com/internal/providers/domain"
+	tenantServices "getnoti.com/internal/tenants/services"
 	"getnoti.com/internal/providers/dtos"
 	"getnoti.com/internal/providers/infra/providers"
 	"getnoti.com/pkg/queue"
@@ -18,16 +18,16 @@ type NotificationManager struct {
 	notificationQueue queue.Queue
 	providerFactory   *providers.ProviderFactory
 	workerPoolManager *workerpool.WorkerPoolManager
-	userPrefChecker   domain.UserPreferenceChecker
+	userPrefService *tenantServices.UserPreferenceService
 	mu                sync.RWMutex
 }
 
-func NewNotificationManager(nq queue.Queue, pf *providers.ProviderFactory, wpm *workerpool.WorkerPoolManager, userPrefChecker domain.UserPreferenceChecker) *NotificationManager {
+func NewNotificationManager(nq queue.Queue, pf *providers.ProviderFactory, wpm *workerpool.WorkerPoolManager, 	userPrefService *tenantServices.UserPreferenceService) *NotificationManager {
 	return &NotificationManager{
 		notificationQueue: nq,
 		providerFactory:   pf,
 		workerPoolManager: wpm,
-		userPrefChecker:   userPrefChecker,
+		userPrefService: userPrefService,
 	}
 }
 
@@ -90,9 +90,9 @@ func (nm *NotificationManager) handleMessage(msg queue.Message) {
 	}
 
 	// Check user preferences (if this is a user-targeted notification)
-	if req.UserID != "" && nm.userPrefChecker != nil {
+	if req.UserID != "" && nm.userPrefService != nil {
 		ctx := context.Background()
-		shouldSend, err := nm.userPrefChecker.ShouldSendNotification(ctx, req.UserID, req.TenantID, req.Channel, req.Category)
+		shouldSend, err := nm.userPrefService.ShouldSendNotification(ctx, req.UserID, req.TenantID, req.Channel, req.Category)
 		if err != nil {
 			fmt.Printf("Error checking user preferences: %v\n", err)
 			// Continue with sending as default behavior if preferences check fails

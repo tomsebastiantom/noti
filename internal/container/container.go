@@ -176,6 +176,9 @@ func (c *ServiceContainer) GetUserPreferenceRepositoryForTenant(tenantID string)
     return c.repositoryFactory.GetUserPreferenceRepositoryForTenant(tenantID)
 }
 
+func (c *ServiceContainer) GetTenantPreferenceRepositoryForTenant(tenantID string) (tenantRepos.UserPreferenceRepository, error) {
+    return c.repositoryFactory.GetUserPreferenceRepositoryForTenant(tenantID)
+}
 // Infrastructure holds infrastructure components
 type Infrastructure struct {
 	MainDB            db.Database

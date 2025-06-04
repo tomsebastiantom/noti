@@ -13,10 +13,10 @@ import (
 	providerImpl "getnoti.com/internal/providers/repos/implementations"
 	templateRepos "getnoti.com/internal/templates/repos"
 	templateImpl "getnoti.com/internal/templates/repos/implementations"
+	tenantRepos "getnoti.com/internal/tenants/repos"
+	tenantImpl "getnoti.com/internal/tenants/repos/implementations"
 	webhookRepos "getnoti.com/internal/webhooks/repos"
 	webhookImpl "getnoti.com/internal/webhooks/repos/implementations"
-    tenantRepos "getnoti.com/internal/tenants/repos"
-    tenantImpl "getnoti.com/internal/tenants/repos/implementations"
 )
 
 // RepositoryFactory creates tenant-specific repositories
@@ -92,4 +92,14 @@ func (f *RepositoryFactory) GetUserPreferenceRepositoryForTenant(tenantID string
     }
 
     return tenantImpl.NewUserPreferenceRepository(db), nil
+}
+
+// GetTenantPreferenceRepositoryForTenant creates a tenant preference repository for a tenant
+func (f *RepositoryFactory) GetTenantPreferenceRepositoryForTenant(tenantID string) (tenantRepos.TenantPreferenceRepository, error) {
+    db, err := f.dbManager.GetDatabaseConnection(tenantID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get database for tenant %s: %w", tenantID, err)
+    }
+
+    return tenantImpl.NewTenantPreferenceRepository(db), nil
 }

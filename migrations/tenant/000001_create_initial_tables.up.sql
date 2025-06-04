@@ -1,12 +1,8 @@
-
 CREATE TABLE users (
     id UUID PRIMARY KEY,
     email VARCHAR(255) NOT NULL,
     phone_number VARCHAR(20),
     device_id VARCHAR(255),
-    web_push_token VARCHAR(255),
-    consents JSONB NOT NULL,
-    preferred_mode VARCHAR(50) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

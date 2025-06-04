@@ -30,9 +30,6 @@ func (uc *createUserUseCase) Execute(ctx context.Context, req CreateUserRequest)
 		Email:         req.Email,
 		PhoneNumber:   req.PhoneNumber,
 		DeviceID:      req.DeviceID,
-		WebPushToken:  req.WebPushToken,
-		Consents:      req.Consents,
-		PreferredMode: req.PreferredMode,
 	}
 
 	err := uc.repo.CreateUser(ctx, user)

@@ -36,15 +36,8 @@ func (uc *updateUserUseCase) Execute(ctx context.Context, input UpdateUserReques
         Email:         ifNotEmpty(input.Email, existingUser.Email),
         PhoneNumber:   ifNotEmpty(input.PhoneNumber, existingUser.PhoneNumber),
         DeviceID:      ifNotEmpty(input.DeviceID, existingUser.DeviceID),
-        WebPushToken:  ifNotEmpty(input.WebPushToken, existingUser.WebPushToken),
-        PreferredMode: ifNotEmpty(input.PreferredMode, existingUser.PreferredMode),
     }
 
-    if input.Consents != nil {
-        updatedUser.Consents = input.Consents
-    } else {
-        updatedUser.Consents = existingUser.Consents
-    }
 
    
 

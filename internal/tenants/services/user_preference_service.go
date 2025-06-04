@@ -47,10 +47,8 @@ func (s *UserPreferenceService) ShouldSendNotification(
 		return true, nil
 	}
 
-
 	// Get tenant-specific repository
 	userPrefRepo, err := s.repositoryFactory.GetUserPreferenceRepositoryForTenant(tenantID)
-
 	if err != nil {
 		s.logger.Error("Failed to get user preference repository for tenant", 
 			logger.String("tenant_id", tenantID), 
@@ -108,6 +106,6 @@ func (s *UserPreferenceService) ShouldSendNotification(
 		}
 	}
 
-	// All checks passed, should send notification
+	// All checks passed, notification can be sent
 	return true, nil
 }
