@@ -11,6 +11,7 @@ import (
 	templateroutes "getnoti.com/internal/templates/infra/http"
 	tenantroutes "getnoti.com/internal/tenants/infra/http/tenants"
 	userroutes "getnoti.com/internal/tenants/infra/http/users"
+	webhookroutes "getnoti.com/internal/webhooks/infra/http"
 	"getnoti.com/pkg/cache"
 	"getnoti.com/pkg/credentials"
 	"getnoti.com/pkg/db"
@@ -69,6 +70,8 @@ func (r *Router) mountV1Routes(router chi.Router) {
         templateroutes.NewRouter(r.dbManager))
     v1Router.With(tenantMiddleware.WithTenantID).Mount("/providers", 
         providerroutes.NewRouter(r.dbManager))
+    v1Router.With(tenantMiddleware.WithTenantID).Mount("/webhooks", 
+        webhookroutes.NewRouter(r.serviceContainer, r.dbManager))
 
     // Add SSE endpoint for tenant (tenantMiddleware must be applied to extract tenantID)
     v1Router.With(tenantMiddleware.WithTenantID).Get("/events/stream", func(w http.ResponseWriter, req *http.Request) {

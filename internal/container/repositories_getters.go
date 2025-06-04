@@ -1,18 +1,20 @@
 package container
 
 import (
-    "fmt"
-    
-    "getnoti.com/pkg/credentials"
-    "getnoti.com/pkg/db"
-    "getnoti.com/pkg/logger"
-    
-    notificationRepos "getnoti.com/internal/notifications/repos"
-    notificationImpl "getnoti.com/internal/notifications/repos/implementations"
-    templateRepos "getnoti.com/internal/templates/repos"
-    templateImpl "getnoti.com/internal/templates/repos/implementations"
-    providerRepos "getnoti.com/internal/providers/repos"
-    providerImpl "getnoti.com/internal/providers/repos/implementations"
+	"fmt"
+
+	"getnoti.com/pkg/credentials"
+	"getnoti.com/pkg/db"
+	"getnoti.com/pkg/logger"
+
+	notificationRepos "getnoti.com/internal/notifications/repos"
+	notificationImpl "getnoti.com/internal/notifications/repos/implementations"
+	providerRepos "getnoti.com/internal/providers/repos"
+	providerImpl "getnoti.com/internal/providers/repos/implementations"
+	templateRepos "getnoti.com/internal/templates/repos"
+	templateImpl "getnoti.com/internal/templates/repos/implementations"
+	webhookRepos "getnoti.com/internal/webhooks/repos"
+	webhookImpl "getnoti.com/internal/webhooks/repos/implementations"
 )
 
 // RepositoryFactory creates tenant-specific repositories
@@ -66,4 +68,15 @@ func (f *RepositoryFactory) GetProviderRepositoryForTenant(tenantID string) (pro
     }
     
     return providerImpl.NewProviderRepository(db), nil
+}
+
+// GetWebhookRepositoryForTenant creates a webhook repository for a tenant
+func (f *RepositoryFactory) GetWebhookRepositoryForTenant(tenantID string) (webhookRepos.WebhookRepository, error) {
+    // Get tenant DB connection
+    db, err := f.dbManager.GetDatabaseConnection(tenantID)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get database for tenant %s: %w", tenantID, err)
+    }
+    
+    return webhookImpl.NewWebhookRepository(db), nil
 }

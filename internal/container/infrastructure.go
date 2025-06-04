@@ -7,6 +7,7 @@ import (
 	"getnoti.com/pkg/credentials"
 	"getnoti.com/pkg/db"
 	"getnoti.com/pkg/queue"
+	"getnoti.com/pkg/webhook"
 	"getnoti.com/pkg/workerpool"
 )
 
@@ -73,6 +74,13 @@ func (c *ServiceContainer) initializeInfrastructure() error {
 	c.workerPoolManager = workerpool.NewWorkerPoolManager(c.logger)
 	c.logger.Info("Worker pool manager initialized successfully")
 
+	// Initialize webhook sender
+	c.webhookSender = webhook.NewSender(
+		c.dbManager,
+		c.workerPoolManager,
+		c.logger,
+	)
+	c.logger.Info("Webhook sender initialized successfully")
 
 	c.logger.Info("Infrastructure initialization completed successfully")
 	return nil

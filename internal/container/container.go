@@ -14,11 +14,14 @@ import (
 	templateServices "getnoti.com/internal/templates/services"
 	tenantRepos "getnoti.com/internal/tenants/repos"
 	tenantServices "getnoti.com/internal/tenants/services"
+	webhookRepos "getnoti.com/internal/webhooks/repos"
+	webhookServices "getnoti.com/internal/webhooks/services"
 	"getnoti.com/pkg/cache"
 	"getnoti.com/pkg/credentials"
 	"getnoti.com/pkg/db"
 	"getnoti.com/pkg/logger"
 	"getnoti.com/pkg/queue"
+	"getnoti.com/pkg/webhook"
 	"getnoti.com/pkg/workerpool"
 )
 
@@ -39,16 +42,23 @@ type ServiceContainer struct {
 	configResolver    db.ConfigResolver
 	// Provider Factory (needed for provider service)
 	providerFactory *providers.ProviderFactory
+	
+	// Webhook Infrastructure
+	webhookSender *webhook.Sender
 
 	// Application Services
 	tenantService       *tenantServices.TenantService
 	notificationService *notificationServices.NotificationService
 	templateService     *templateServices.TemplateService
-	providerService     *providerServices.ProviderService	
+	providerService     *providerServices.ProviderService
+	webhookService      *webhookServices.WebhookService
+	
+	// Repositories
 	tenantRepo       tenantRepos.TenantsRepository
 	userRepo         tenantRepos.UserRepository
 	notificationRepo notificationRepos.NotificationRepository
 	templateRepo     templateRepos.TemplateRepository
+	webhookRepo      webhookRepos.WebhookRepository
 	repositoryFactory *RepositoryFactory
 	providerRepo     providerRepos.ProviderRepository
 }
@@ -93,6 +103,14 @@ func (c *ServiceContainer) GetProviderService() *providerServices.ProviderServic
 	return c.providerService
 }
 
+func (c *ServiceContainer) GetWebhookService() *webhookServices.WebhookService {
+	return c.webhookService
+}
+
+func (c *ServiceContainer) GetWebhookSender() *webhook.Sender {
+	return c.webhookSender
+}
+
 // Repository Getters
 func (c *ServiceContainer) GetTenantRepository() tenantRepos.TenantsRepository {
 	return c.tenantRepo
@@ -112,6 +130,10 @@ func (c *ServiceContainer) GetTemplateRepository() templateRepos.TemplateReposit
 
 func (c *ServiceContainer) GetProviderRepository() providerRepos.ProviderRepository {
 	return c.providerRepo
+}
+
+func (c *ServiceContainer) GetWebhookRepository() webhookRepos.WebhookRepository {
+	return c.webhookRepo
 }
 
 // Infrastructure Getters
@@ -139,6 +161,10 @@ func (c *ServiceContainer) GetTemplateRepositoryForTenant(tenantID string) (temp
 
 func (c *ServiceContainer) GetProviderRepositoryForTenant(tenantID string) (providerRepos.ProviderRepository, error) {
     return c.repositoryFactory.GetProviderRepositoryForTenant(tenantID)
+}
+
+func (c *ServiceContainer) GetWebhookRepositoryForTenant(tenantID string) (webhookRepos.WebhookRepository, error) {
+    return c.repositoryFactory.GetWebhookRepositoryForTenant(tenantID)
 }
 
 // Infrastructure holds infrastructure components

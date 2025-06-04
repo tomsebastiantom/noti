@@ -3,10 +3,12 @@ package container
 import (
 	notificationServices "getnoti.com/internal/notifications/services"
 	providerServices "getnoti.com/internal/providers/services"
-    templateServices "getnoti.com/internal/templates/services"
+	templateServices "getnoti.com/internal/templates/services"
 	tenantServices "getnoti.com/internal/tenants/services"
+	webhookServices "getnoti.com/internal/webhooks/services"
 	"getnoti.com/pkg/logger"
 	"getnoti.com/pkg/queue"
+	"getnoti.com/pkg/webhook"
 )
 
 // initializeServices sets up all application services
@@ -63,7 +65,17 @@ func (c *ServiceContainer) initializeServices() error {
 		c.workerPoolManager,
 		c.logger,
 	)
-	c.logger.Info("Provider service initialized successfully")
+	c.logger.Info("Provider service initialized successfully")	// Initialize webhook service
+	webhookSecurityManager := webhook.NewSecurityManager()
+	c.webhookService = webhookServices.NewWebhookService(
+		c.dbManager,
+		c.queueManager,
+		webhookSecurityManager,
+		c.webhookSender,
+		c.logger,
+		c.repositoryFactory,
+	)
+	c.logger.Info("Webhook service initialized successfully")
 
 	c.logger.Info("Application services initialization completed successfully")
 	return nil
