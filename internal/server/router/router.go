@@ -7,8 +7,10 @@ import (
 	notificationroutes "getnoti.com/internal/notifications/infra/http"
 	providerroutes "getnoti.com/internal/providers/infra/http"
 	"getnoti.com/internal/server/middleware"
+	"getnoti.com/internal/shared/handler"
 	tenantMiddleware "getnoti.com/internal/shared/middleware"
 	templateroutes "getnoti.com/internal/templates/infra/http"
+	preferencesroutes "getnoti.com/internal/tenants/infra/http/preferences"
 	tenantroutes "getnoti.com/internal/tenants/infra/http/tenants"
 	userroutes "getnoti.com/internal/tenants/infra/http/users"
 	webhookroutes "getnoti.com/internal/webhooks/infra/http"
@@ -58,8 +60,7 @@ func (r *Router) Handler() *chi.Mux {
 }
 
 func (r *Router) mountV1Routes(router chi.Router) {
-    v1Router := chi.NewRouter()
-
+    v1Router := chi.NewRouter()   
     v1Router.With(tenantMiddleware.WithTenantID).Mount("/notifications", 
         notificationroutes.NewRouter(r.serviceContainer, r.dbManager, r.genericCache, r.queueManager, r.credentialManager, r.workerPoolManager))
     v1Router.Mount("/tenants", 
@@ -67,11 +68,13 @@ func (r *Router) mountV1Routes(router chi.Router) {
     v1Router.With(tenantMiddleware.WithTenantID).Mount("/users", 
         userroutes.NewRouter(r.dbManager))
     v1Router.With(tenantMiddleware.WithTenantID).Mount("/templates", 
-        templateroutes.NewRouter(r.dbManager))
+        templateroutes.NewRouter(r.dbManager))    
     v1Router.With(tenantMiddleware.WithTenantID).Mount("/providers", 
         providerroutes.NewRouter(r.dbManager))
     v1Router.With(tenantMiddleware.WithTenantID).Mount("/webhooks", 
-        webhookroutes.NewRouter(r.serviceContainer, r.dbManager))
+        webhookroutes.NewRouter(r.serviceContainer, r.dbManager))    
+    v1Router.With(tenantMiddleware.WithTenantID).Mount("/preferences", 
+        preferencesroutes.NewRouter(handler.NewBaseHandler(r.dbManager)))
 
     // Add SSE endpoint for tenant (tenantMiddleware must be applied to extract tenantID)
     v1Router.With(tenantMiddleware.WithTenantID).Get("/events/stream", func(w http.ResponseWriter, req *http.Request) {

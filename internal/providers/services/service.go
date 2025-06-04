@@ -34,15 +34,19 @@ func NewProviderService(
     factory *providers.ProviderFactory,
     queue queue.Queue,
     wpm *workerpool.WorkerPoolManager,
+    userPrefService *tenantServices.UserPreferenceService,
     logger logger.Logger,
 ) *ProviderService {
+    // Create the adapter that implements UserPreferenceChecker from the UserPreferenceService
+    userPrefChecker := NewUserPreferenceCheckerAdapter(userPrefService)
+    
     return &ProviderService{
         providerRepo:        providerRepo,
         tenantService:       tenantService,
         credentialManager:   credentialManager,
         cache:              cache,
         factory:            factory,
-        notificationManager: NewNotificationManager(queue, factory, wpm),
+        notificationManager: NewNotificationManager(queue, factory, wpm, userPrefChecker),
         logger:             logger,
     }
 }

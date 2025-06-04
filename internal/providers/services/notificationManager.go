@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"getnoti.com/internal/providers/domain"
 	"getnoti.com/internal/providers/dtos"
 	"getnoti.com/internal/providers/infra/providers"
 	"getnoti.com/pkg/queue"
@@ -17,14 +18,16 @@ type NotificationManager struct {
 	notificationQueue queue.Queue
 	providerFactory   *providers.ProviderFactory
 	workerPoolManager *workerpool.WorkerPoolManager
+	userPrefChecker   domain.UserPreferenceChecker
 	mu                sync.RWMutex
 }
 
-func NewNotificationManager(nq queue.Queue, pf *providers.ProviderFactory, wpm *workerpool.WorkerPoolManager) *NotificationManager {
+func NewNotificationManager(nq queue.Queue, pf *providers.ProviderFactory, wpm *workerpool.WorkerPoolManager, userPrefChecker domain.UserPreferenceChecker) *NotificationManager {
 	return &NotificationManager{
 		notificationQueue: nq,
 		providerFactory:   pf,
 		workerPoolManager: wpm,
+		userPrefChecker:   userPrefChecker,
 	}
 }
 
@@ -84,6 +87,19 @@ func (nm *NotificationManager) handleMessage(msg queue.Message) {
 	if err != nil {
 		fmt.Printf("Failed to unmarshal message: %v\n", err)
 		return
+	}
+
+	// Check user preferences (if this is a user-targeted notification)
+	if req.UserID != "" && nm.userPrefChecker != nil {
+		ctx := context.Background()
+		shouldSend, err := nm.userPrefChecker.ShouldSendNotification(ctx, req.UserID, req.TenantID, req.Channel, req.Category)
+		if err != nil {
+			fmt.Printf("Error checking user preferences: %v\n", err)
+			// Continue with sending as default behavior if preferences check fails
+		} else if !shouldSend {
+			fmt.Printf("Notification skipped based on user preferences for user %s\n", req.UserID)
+			return
+		}
 	}
 
 	provider, err := nm.providerFactory.GetProvider(req.ProviderID, req.Sender, req.Channel)

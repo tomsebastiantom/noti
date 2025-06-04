@@ -15,6 +15,8 @@ import (
 	templateImpl "getnoti.com/internal/templates/repos/implementations"
 	webhookRepos "getnoti.com/internal/webhooks/repos"
 	webhookImpl "getnoti.com/internal/webhooks/repos/implementations"
+    tenantRepos "getnoti.com/internal/tenants/repos"
+    tenantImpl "getnoti.com/internal/tenants/repos/implementations"
 )
 
 // RepositoryFactory creates tenant-specific repositories
@@ -79,4 +81,15 @@ func (f *RepositoryFactory) GetWebhookRepositoryForTenant(tenantID string) (webh
     }
     
     return webhookImpl.NewWebhookRepository(db), nil
+}
+
+func (f *RepositoryFactory) GetUserPreferenceRepositoryForTenant(tenantID string) (tenantRepos.UserPreferenceRepository, error) {
+    
+    db, err := f.dbManager.GetDatabaseConnection(tenantID)
+
+    if err != nil {
+        return nil, fmt.Errorf("failed to get database for tenant %s: %w", tenantID, err)
+    }
+
+    return tenantImpl.NewUserPreferenceRepository(db), nil
 }

@@ -23,6 +23,15 @@ func (c *ServiceContainer) initializeServices() error {
 		c.logger,
 	)
 	c.logger.Info("Tenant service initialized successfully")
+	
+	// Initialize user preference service
+	c.userPreferenceService = tenantServices.NewUserPreferenceService(
+		c.dbManager,
+		c.logger,
+	    c.repositoryFactory,
+	)
+	c.logger.Info("User preference service initialized successfully")
+	
 	// Initialize notification service  
 	c.notificationService = notificationServices.NewNotificationService(
 		c.notificationRepo,
@@ -54,8 +63,7 @@ func (c *ServiceContainer) initializeServices() error {
 	} else {
 		c.logger.Warn("No queue URL configured, notifications will be processed synchronously")
 	}
-	
-	c.providerService = providerServices.NewProviderService(
+		c.providerService = providerServices.NewProviderService(
 		c.providerRepo,
 		c.tenantService,
 		c.credentialManager,
@@ -63,6 +71,7 @@ func (c *ServiceContainer) initializeServices() error {
 		c.providerFactory,
 		notificationQueue,
 		c.workerPoolManager,
+		c.userPreferenceService,
 		c.logger,
 	)
 	c.logger.Info("Provider service initialized successfully")	// Initialize webhook service

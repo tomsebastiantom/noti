@@ -52,6 +52,7 @@ type ServiceContainer struct {
 	templateService     *templateServices.TemplateService
 	providerService     *providerServices.ProviderService
 	webhookService      *webhookServices.WebhookService
+	userPreferenceService *tenantServices.UserPreferenceService
 	
 	// Repositories
 	tenantRepo       tenantRepos.TenantsRepository
@@ -105,6 +106,10 @@ func (c *ServiceContainer) GetProviderService() *providerServices.ProviderServic
 
 func (c *ServiceContainer) GetWebhookService() *webhookServices.WebhookService {
 	return c.webhookService
+}
+
+func (c *ServiceContainer) GetUserPreferenceService() *tenantServices.UserPreferenceService {
+	return c.userPreferenceService
 }
 
 func (c *ServiceContainer) GetWebhookSender() *webhook.Sender {
@@ -165,6 +170,10 @@ func (c *ServiceContainer) GetProviderRepositoryForTenant(tenantID string) (prov
 
 func (c *ServiceContainer) GetWebhookRepositoryForTenant(tenantID string) (webhookRepos.WebhookRepository, error) {
     return c.repositoryFactory.GetWebhookRepositoryForTenant(tenantID)
+}
+
+func (c *ServiceContainer) GetUserPreferenceRepositoryForTenant(tenantID string) (tenantRepos.UserPreferenceRepository, error) {
+    return c.repositoryFactory.GetUserPreferenceRepositoryForTenant(tenantID)
 }
 
 // Infrastructure holds infrastructure components
