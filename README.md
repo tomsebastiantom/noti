@@ -25,6 +25,7 @@
 - **Robust Webhook Delivery**: Reliable webhook delivery with retry logic and circuit breaker patterns
 - **Per-Tenant Webhook Configuration**: Customizable webhook endpoints and authentication per client
 - **Delivery Guarantees**: Comprehensive error handling and failure recovery mechanisms
+- **Security Manager**: Built-in webhook security validation and signature verification
 
 ### Notification Providers
 - **Multi-Provider Support**: Extensible framework supporting SMS (Twilio), Email (SES), Push notifications, and Voice calls
@@ -34,17 +35,18 @@
 ### Database & Performance
 - **Multi-Database Support**: SQLite, MySQL, and PostgreSQL with automated migration system
 - **Connection Pooling**: Optimized database connections with up to 40% performance improvement
+- **Queue Management**: Optional queue support for asynchronous notification processing
 
 ### User & Tenant Management
 - **User Preferences**: Granular notification preferences per user (email, SMS, push, frequency)
 - **Tenant Preferences**: Organization-level notification settings and provider configurations
 - **Template Management**: Customizable notification templates per provider and tenant
-- **Role-Based Access**: Fine-grained permission system for tenant administrators
+- **Repository Factory**: Dynamic repository creation for multi-tenant data access
 
 ### Monitoring & Reliability
 - **Comprehensive Logging**: Structured logging with contextual error tracking
 - **Health Monitoring**: Deep health checks across all infrastructure components
-- **Queue Management**: Asynchronous notification processing with worker pools
+- **Worker Pool Management**: Scalable worker pools for notification processing
 - **Circuit Breaker Pattern**: Automatic failure detection and recovery
 
 ## Getting Started
@@ -53,8 +55,8 @@
 - Go 1.21+
 - Docker & Docker Compose
 - HashiCorp Vault
-- Redis (for caching and real-time features)
 - Database (PostgreSQL recommended for production)
+- Message Queue (optional - for async processing)
 
 ### Quick Start
 1. **Clone the repository**:
@@ -71,12 +73,11 @@
 
 3. **Start Infrastructure**:
     ```bash
-    docker-compose up -d vault redis postgres
+    docker-compose up -d vault postgres
     ```
 
 4. **Initialize Vault** (if needed):
     ```bash
-    # Vault setup commands here
     export VAULT_ADDR=http://127.0.0.1:8200
     export VAULT_TOKEN=your-token
     ```
@@ -98,38 +99,7 @@ Key configuration areas:
 - **Provider Credentials**: Third-party service API keys (stored in Vault)
 - **Webhook Endpoints**: Client webhook URLs and authentication
 - **Real-time Settings**: SSE connection limits and timeouts
-
-## API Documentation
-
-### Core Endpoints
-- `POST /api/v1/notifications/send` - Send notifications
-- `GET /api/v1/notifications/sse/{tenant_id}` - SSE stream for real-time updates
-- `POST /api/v1/webhooks/{tenant_id}` - Webhook delivery endpoint
-- `GET /api/v1/users/{user_id}/preferences` - User notification preferences
-- `PUT /api/v1/tenants/{tenant_id}/preferences` - Tenant configuration
-
-### Real-Time Features
-```javascript
-// SSE Connection Example
-const eventSource = new EventSource('/api/v1/notifications/sse/tenant123');
-eventSource.onmessage = function(event) {
-    const notification = JSON.parse(event.data);
-    // Handle real-time notification
-};
-```
-
-### Webhook Integration
-```json
-{
-    "webhook_url": "https://your-app.com/webhooks/notifications",
-    "secret": "your-webhook-secret",
-    "events": ["notification.sent", "notification.failed"],
-    "retry_config": {
-        "max_attempts": 3,
-        "backoff_seconds": [1, 5, 15]
-    }
-}
-```
+- **Queue Configuration**: Optional message queue for async processing
 
 ## Architecture
 
@@ -146,61 +116,5 @@ internal/
 ├── container/       # Dependency injection
 └── server/         # HTTP layer
 ```
-
-### Multi-Tenant Data Flow
-1. Request arrives with tenant context
-2. Tenant-specific database connection retrieved
-3. User preferences and tenant settings loaded
-4. Notification routed to configured providers
-5. Real-time updates sent via SSE
-6. Webhook delivery attempted with retries
-7. Results logged and tracked
-
-## Deployment
-
-### Production Considerations
-- Use PostgreSQL for production databases
-- Configure Vault for credential management
-- Set up Redis cluster for caching
-- Enable TLS for all external communications
-- Configure proper logging and monitoring
-
-### Docker Deployment
-```bash
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### Kubernetes Support
-Helm charts and Kubernetes manifests available in `/deploy` directory.
-
-## Contributing
-
-We welcome contributions! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) for:
-- Code style guidelines
-- Testing requirements
-- Pull request process
-- Development setup
-
-## Roadmap
-
-- [ ] GraphQL API support
-- [ ] Advanced analytics and reporting
-- [ ] A/B testing for notification templates
-- [ ] Machine learning for delivery optimization
-- [ ] Additional provider integrations
-- [ ] Mobile SDKs
-
-## License
-
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
-
-## Support
-
-- 📖 [Documentation](https://docs.getnoti.com)
-- 💬 [Discord Community](https://discord.gg/noti)
-- 🐛 [Issue Tracker](https://github.com/yourusername/noti/issues)
-- 📧 [Email Support](mailto:support@getnoti.com)
-
----
 
 Built with ❤️ using Go, Domain-Driven Design, and modern cloud-native patterns.
