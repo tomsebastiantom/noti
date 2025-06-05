@@ -7,8 +7,8 @@ type SendNotificationRequest struct {
 	Content    string
 	ProviderID string
 	TenantID   string
-	UserID     string // User ID for preference checking
-	Category   string // Notification category for preference filtering
+	UserID     string 
+	Category   string 
 }
 
 type SendNotificationResponse struct {
