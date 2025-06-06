@@ -11,6 +11,7 @@ import (
 	providerRepos "getnoti.com/internal/providers/repos"
 	providerServices "getnoti.com/internal/providers/services"
 	"getnoti.com/internal/shared/events"
+	schedulerRepos "getnoti.com/internal/shared/scheduler"
 	templateRepos "getnoti.com/internal/templates/repos"
 	templateServices "getnoti.com/internal/templates/services"
 	tenantRepos "getnoti.com/internal/tenants/repos"
@@ -179,6 +180,12 @@ func (c *ServiceContainer) GetUserPreferenceRepositoryForTenant(tenantID string)
 func (c *ServiceContainer) GetTenantPreferenceRepositoryForTenant(tenantID string) (tenantRepos.UserPreferenceRepository, error) {
     return c.repositoryFactory.GetUserPreferenceRepositoryForTenant(tenantID)
 }
+
+// GetSchedulerRepository gets the scheduler repository (uses main database)
+func (c *ServiceContainer) GetSchedulerRepository() (schedulerRepos.Repository, error) {
+    return c.repositoryFactory.GetSchedulerRepository()
+}
+
 // Infrastructure holds infrastructure components
 type Infrastructure struct {
 	MainDB            db.Database

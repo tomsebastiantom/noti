@@ -11,6 +11,7 @@ import (
 	notificationImpl "getnoti.com/internal/notifications/repos/implementations"
 	providerRepos "getnoti.com/internal/providers/repos"
 	providerImpl "getnoti.com/internal/providers/repos/implementations"
+	schedulerRepos "getnoti.com/internal/shared/scheduler"
 	templateRepos "getnoti.com/internal/templates/repos"
 	templateImpl "getnoti.com/internal/templates/repos/implementations"
 	tenantRepos "getnoti.com/internal/tenants/repos"
@@ -81,6 +82,18 @@ func (f *RepositoryFactory) GetWebhookRepositoryForTenant(tenantID string) (webh
     }
     
     return webhookImpl.NewWebhookRepository(db), nil
+}
+
+// GetSchedulerRepository creates a scheduler repository using the admin database
+// Note: Scheduler uses admin database for better scalability across tenants
+func (f *RepositoryFactory) GetSchedulerRepository() (schedulerRepos.Repository, error) {
+    // Get admin/main DB connection instead of tenant-specific DB
+    mainDB := f.dbManager.GetMainDatabase()
+    if mainDB == nil {
+        return nil, fmt.Errorf("main database is not initialized")
+    }
+    
+    return schedulerRepos.NewSchedulerRepository(mainDB), nil
 }
 
 func (f *RepositoryFactory) GetUserPreferenceRepositoryForTenant(tenantID string) (tenantRepos.UserPreferenceRepository, error) {

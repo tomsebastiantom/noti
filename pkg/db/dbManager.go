@@ -46,6 +46,11 @@ func (m *Manager) SetCredentialService(service CredentialService) {
     m.credentialService = service
 }
 
+// GetMainDatabase returns the main database connection
+func (m *Manager) GetMainDatabase() Database {
+    return m.mainDB
+}
+
 // GetDatabaseConnection retrieves a database connection for the given tenant ID.
 func (m *Manager) GetDatabaseConnection(tenantID string) (Database, error) {
     // Check cache first

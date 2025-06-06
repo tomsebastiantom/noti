@@ -19,6 +19,7 @@ require (
 	github.com/knadh/koanf/v2 v2.1.1
 	github.com/lib/pq v1.10.9
 	github.com/r3labs/sse/v2 v2.10.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/streadway/amqp v1.1.0
 	github.com/twilio/twilio-go v1.22.2
