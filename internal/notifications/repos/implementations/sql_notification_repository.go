@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"getnoti.com/internal/notifications/domain"
-	"getnoti.com/internal/notifications/repos"
+	notificationRepos "getnoti.com/internal/notifications/repos"
 	"getnoti.com/pkg/db"
 )
 
@@ -14,7 +15,7 @@ type sqlNotificationRepository struct {
 }
 
 // NewNotificationRepository creates a new instance of sqlNotificationRepository
-func NewNotificationRepository(db db.Database) repository.NotificationRepository {
+func NewNotificationRepository(db db.Database) notificationRepos.NotificationRepository {
 	return &sqlNotificationRepository{db: db}
 }
 

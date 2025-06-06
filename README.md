@@ -55,10 +55,37 @@
 
 ### Task Scheduler
 - **CRON-based Scheduling**: Flexible scheduling using cron expressions for recurring tasks
-- **Multiple Task Types**: Support for notification, webhook, cleanup, and report generation tasks
+- **Multiple Task Types**: Support for notification, webhook, cleanup, report generation, and workflow execution tasks
 - **Execution Tracking**: Detailed execution history with status tracking and result storage
 - **Failure Management**: Comprehensive error handling with configurable retry policies
 - **Multi-tenant Isolation**: Per-tenant schedule management and execution
+- **Workflow Integration**: Seamless integration with workflow engine for scheduled workflow executions
+- **Job Priority Management**: Priority-based job processing with queue management
+- **Worker Pool Optimization**: Intelligent worker allocation for different task types
+
+### Workflow Engine
+- **Multi-Step Workflows**: Chain multiple notification steps with conditional logic
+- **Event-Driven Triggers**: Start workflows based on events, schedules, or webhooks
+- **Scheduled Workflow Execution**: CRON-based scheduling for automated workflow execution with per-tenant isolation
+- **Conditional Branching**: Route workflow execution based on dynamic conditions
+- **Delay Steps**: Time-based delays between workflow steps
+- **Digest Support**: Batch notifications over configurable time periods
+- **Channel Routing**: Smart routing to different channels based on user preferences
+- **Template Integration**: Rich template support for each workflow step
+- **Execution Tracking**: Complete audit trail of workflow executions and step results
+- **Job Processing**: Robust job processing system with retry logic and failure management
+- **State Management**: Comprehensive workflow state tracking and recovery mechanisms
+- **Multi-tenant Scheduling**: Isolated workflow schedules per tenant with shared execution infrastructure
+
+### Workflow Scheduling
+- **CRON-Based Scheduling**: Schedule workflows to run automatically using flexible CRON expressions
+- **Per-Tenant Isolation**: Each tenant can define their own workflow schedules without interference
+- **Schedule Management**: Create, update, enable/disable, and delete workflow schedules through API
+- **Execution History**: Track all scheduled workflow executions with detailed status and result information
+- **Timezone Support**: Configure schedules with specific timezone handling for global deployments
+- **Integration with Task Scheduler**: Seamless integration with the general task scheduler for unified job processing
+- **Error Handling**: Comprehensive error handling and retry logic for failed scheduled executions
+- **Resource Management**: Efficient resource allocation and cleanup for scheduled workflow jobs
 
 ### Monitoring & Reliability
 - **Comprehensive Logging**: Structured logging with contextual error tracking
@@ -118,6 +145,7 @@ Key configuration areas:
 - **Real-time Settings**: SSE connection limits and timeouts
 - **Queue Configuration**: Optional message queue for async processing
 - **Scheduler Settings**: CRON expressions and execution parameters for scheduled tasks
+- **Workflow Scheduling**: Configuration for automated workflow execution schedules
 
 ## Architecture
 
@@ -128,7 +156,8 @@ internal/
 │   ├── notification/
 │   ├── tenant/
 │   ├── user/
-│   └── webhook/
+│   ├── webhook/
+│   └── workflows/   # Workflow management
 ├── shared/          # Shared components
 │   ├── scheduler/   # Task scheduling system
 │   ├── events/      # Event management

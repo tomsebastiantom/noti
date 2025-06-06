@@ -18,6 +18,9 @@ import (
 	tenantServices "getnoti.com/internal/tenants/services"
 	webhookRepos "getnoti.com/internal/webhooks/repos"
 	webhookServices "getnoti.com/internal/webhooks/services"
+	workflowEngine "getnoti.com/internal/workflows/engine"
+	workflowRepos "getnoti.com/internal/workflows/repos"
+	workflowServices "getnoti.com/internal/workflows/services"
 	"getnoti.com/pkg/cache"
 	"getnoti.com/pkg/credentials"
 	"getnoti.com/pkg/db"
@@ -42,14 +45,15 @@ type ServiceContainer struct {
 	configResolver    db.ConfigResolver
 	providerFactory   *providers.ProviderFactory
 	webhookSender     *webhook.Sender
-	eventBus          *events.HybridEventBus
-	// Application Services
+	eventBus          *events.HybridEventBus	// Application Services
 	tenantService         *tenantServices.TenantService
 	notificationService   *notificationServices.NotificationService
 	templateService       *templateServices.TemplateService
 	providerService       *providerServices.ProviderService
 	webhookService        *webhookServices.WebhookService
 	userPreferenceService *tenantServices.UserPreferenceService
+	workflowService       *workflowServices.WorkflowService
+	workflowEngine        *workflowEngine.WorkflowEngine
 	// Repositories
 	tenantRepo         tenantRepos.TenantsRepository
 	userRepo           tenantRepos.UserRepository
@@ -57,6 +61,8 @@ type ServiceContainer struct {
 	templateRepo       templateRepos.TemplateRepository
 	webhookRepo        webhookRepos.WebhookRepository
 	providerRepo       providerRepos.ProviderRepository
+	workflowRepo       workflowRepos.WorkflowRepository
+	executionRepo      workflowRepos.ExecutionRepository
 	repositoryFactory  *RepositoryFactory
 }
 
@@ -110,6 +116,14 @@ func (c *ServiceContainer) GetUserPreferenceService() *tenantServices.UserPrefer
 
 func (c *ServiceContainer) GetWebhookSender() *webhook.Sender {
 	return c.webhookSender
+}
+
+func (c *ServiceContainer) GetWorkflowService() *workflowServices.WorkflowService {
+	return c.workflowService
+}
+
+func (c *ServiceContainer) GetWorkflowEngine() *workflowEngine.WorkflowEngine {
+	return c.workflowEngine
 }
 
 // Event Bus Getter

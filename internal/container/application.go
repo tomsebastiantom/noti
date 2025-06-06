@@ -3,6 +3,7 @@ package container
 import (
 	"context"
 	"fmt"
+	"time"
 
 	notificationHandlers "getnoti.com/internal/notifications/events/handlers"
 	notificationServices "getnoti.com/internal/notifications/services"
@@ -13,9 +14,13 @@ import (
 	tenantServices "getnoti.com/internal/tenants/services"
 	webhookHandlers "getnoti.com/internal/webhooks/events/handlers"
 	webhookServices "getnoti.com/internal/webhooks/services"
+	workflowEngine "getnoti.com/internal/workflows/engine"
+	workflowHandlers "getnoti.com/internal/workflows/events/handlers"
+	workflowServices "getnoti.com/internal/workflows/services"
 	"getnoti.com/pkg/logger"
 	"getnoti.com/pkg/queue"
 	"getnoti.com/pkg/webhook"
+	"getnoti.com/pkg/workerpool"
 )
 
 // initializeServices sets up all application services
@@ -86,8 +91,7 @@ func (c *ServiceContainer) initializeServices() error {
 		c.userPreferenceService,
 		c.logger,
 	)
-	c.logger.Info("Provider service initialized successfully")
-	// Initialize webhook service with event bus
+	c.logger.Info("Provider service initialized successfully")	// Initialize webhook service with event bus
 	webhookSecurityManager := webhook.NewSecurityManager()
 	c.webhookService = webhookServices.NewWebhookService(
 		c.dbManager,
@@ -98,6 +102,43 @@ func (c *ServiceContainer) initializeServices() error {
 		c.repositoryFactory,
 	)
 	c.logger.Info("Webhook service initialized successfully")
+
+	// Initialize workflow service
+	c.workflowService = workflowServices.NewWorkflowService(
+		c.workflowRepo,
+		c.executionRepo,
+		c.logger,
+	)
+	c.logger.Info("Workflow service initialized successfully")
+	// Initialize workflow engine with event bus
+	workflowWorkerPool := c.workerPoolManager.GetOrCreatePool(workerpool.WorkerPoolConfig{
+		Name:           "workflow_engine",
+		InitialWorkers: 5,
+		MaxJobs:        100,
+		MinWorkers:     2,
+		MaxWorkers:     10,
+		ScaleFactor:    1.5,
+		IdleTimeout:    5 * time.Minute,
+		ScaleInterval:  30 * time.Second,
+	})
+	c.workflowEngine = workflowEngine.NewWorkflowEngine(
+		c.workflowRepo,
+		c.executionRepo,
+		workflowWorkerPool,
+		c.logger,
+		c.eventBus,
+		c.notificationService,
+		30 * time.Second, // Set poll interval to 30 seconds
+	)
+	
+	c.logger.Info("Workflow engine initialized successfully")
+	
+	// Start the workflow engine
+	if err := c.workflowEngine.Start(context.Background()); err != nil {
+		return fmt.Errorf("failed to start workflow engine: %w", err)
+	}
+	c.logger.Info("Workflow engine started")
+	
 	// Start the event bus
 	if err := c.eventBus.Start(context.Background()); err != nil {
 		return fmt.Errorf("failed to start event bus: %w", err)
@@ -143,6 +184,15 @@ func (c *ServiceContainer) registerEventHandlers() error {
 			return fmt.Errorf("failed to register webhook handler for %s: %w", eventType, err)
 		}
 		c.logger.Info("Registered webhook event handler", 
+			logger.Field{Key: "event_type", Value: eventType})
+	}
+		// Create workflow event handlers
+	workflowHandlerInstance := workflowHandlers.NewWorkflowEventHandlers(c.logger)
+	for eventType, handler := range workflowHandlerInstance.GetHandlerMethods() {
+		if err := c.eventBus.Subscribe(eventType, handler); err != nil {
+			return fmt.Errorf("failed to register workflow handler for %s: %w", eventType, err)
+		}
+		c.logger.Info("Registered workflow event handler", 
 			logger.Field{Key: "event_type", Value: eventType})
 	}
 
