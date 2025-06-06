@@ -10,6 +10,7 @@ import (
 	"getnoti.com/internal/providers/infra/providers"
 	providerRepos "getnoti.com/internal/providers/repos"
 	providerServices "getnoti.com/internal/providers/services"
+	"getnoti.com/internal/shared/events"
 	templateRepos "getnoti.com/internal/templates/repos"
 	templateServices "getnoti.com/internal/templates/services"
 	tenantRepos "getnoti.com/internal/tenants/repos"
@@ -30,7 +31,6 @@ type ServiceContainer struct {
 	// Configuration
 	config *config.Config
 	logger logger.Logger
-
 	// Infrastructure Services
 	mainDB            db.Database
 	dbManager         *db.Manager
@@ -38,30 +38,25 @@ type ServiceContainer struct {
 	credentialManager *credentials.Manager
 	queueManager      *queue.QueueManager
 	workerPoolManager *workerpool.WorkerPoolManager
-	// Infrastructure Interfaces
 	configResolver    db.ConfigResolver
-	// Provider Factory (needed for provider service)
-	providerFactory *providers.ProviderFactory
-	
-	// Webhook Infrastructure
-	webhookSender *webhook.Sender
-
+	providerFactory   *providers.ProviderFactory
+	webhookSender     *webhook.Sender
+	eventBus          *events.HybridEventBus
 	// Application Services
-	tenantService       *tenantServices.TenantService
-	notificationService *notificationServices.NotificationService
-	templateService     *templateServices.TemplateService
-	providerService     *providerServices.ProviderService
-	webhookService      *webhookServices.WebhookService
+	tenantService         *tenantServices.TenantService
+	notificationService   *notificationServices.NotificationService
+	templateService       *templateServices.TemplateService
+	providerService       *providerServices.ProviderService
+	webhookService        *webhookServices.WebhookService
 	userPreferenceService *tenantServices.UserPreferenceService
-	
 	// Repositories
-	tenantRepo       tenantRepos.TenantsRepository
-	userRepo         tenantRepos.UserRepository
-	notificationRepo notificationRepos.NotificationRepository
-	templateRepo     templateRepos.TemplateRepository
-	webhookRepo      webhookRepos.WebhookRepository
-	repositoryFactory *RepositoryFactory
-	providerRepo     providerRepos.ProviderRepository
+	tenantRepo         tenantRepos.TenantsRepository
+	userRepo           tenantRepos.UserRepository
+	notificationRepo   notificationRepos.NotificationRepository
+	templateRepo       templateRepos.TemplateRepository
+	webhookRepo        webhookRepos.WebhookRepository
+	providerRepo       providerRepos.ProviderRepository
+	repositoryFactory  *RepositoryFactory
 }
 
 // NewServiceContainer creates and initializes the service container
@@ -114,6 +109,11 @@ func (c *ServiceContainer) GetUserPreferenceService() *tenantServices.UserPrefer
 
 func (c *ServiceContainer) GetWebhookSender() *webhook.Sender {
 	return c.webhookSender
+}
+
+// Event Bus Getter
+func (c *ServiceContainer) GetEventBus() *events.HybridEventBus {
+	return c.eventBus
 }
 
 // Repository Getters
