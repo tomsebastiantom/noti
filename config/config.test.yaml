@@ -1,0 +1,39 @@
+# Test Configuration - Fast, isolated testing
+# In-memory/minimal dependencies for testing
+
+app:
+  name: "noti-test"
+  version: "1.0.0"
+
+http:
+  port: "0"  # Random port for testing
+
+logger:
+  log_level: "error"  # Minimal logging during tests
+
+database:
+  type: "sqlite"
+  dsn: ":memory:"  # In-memory database for tests
+  migrate_on_start: true
+
+# All external services disabled for testing
+queue:
+  enabled: false
+  url: ""
+  reconnect_interval: "1s"
+  max_reconnect_attempts: 1
+  heartbeat_interval: "5s"
+
+vault:
+  enabled: false
+  address: ""
+  provider: "hashicorp"
+
+# Simple credential storage for testing
+credentials:
+  storage_type: "database"  # Force database for tests
+  encryption_key_env: "NOTI_TEST_ENCRYPTION_KEY"
+  allow_custom_keys: true
+  default_to_database: true
+
+env: "test"

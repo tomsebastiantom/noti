@@ -1,0 +1,39 @@
+# Development Configuration - Easy setup with minimal dependencies
+# This config prioritizes development speed over production features
+
+app:
+  name: "noti"
+  version: "1.0.0"
+
+http:
+  port: "8072"
+
+logger:
+  log_level: "debug"  # Verbose logging for development
+
+database:
+  type: "sqlite"
+  dsn: "./data/noti.db"
+  migrate_on_start: true  # Auto-migrate for convenience
+
+# External services disabled by default for easy development
+queue:
+  enabled: false  # No message queue needed for development
+  url: ""
+  reconnect_interval: "5s"
+  max_reconnect_attempts: 3
+  heartbeat_interval: "30s"
+
+vault:
+  enabled: false  # No Vault needed for development
+  address: ""
+  provider: "hashicorp"
+
+# Simple credential storage for development
+credentials:
+  storage_type: "auto"  # Will use database since vault is disabled
+  encryption_key_env: "NOTI_ENCRYPTION_KEY"
+  allow_custom_keys: true
+  default_to_database: true
+
+env: "development"

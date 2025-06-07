@@ -191,8 +191,8 @@ func (c *ServiceContainer) GetUserPreferenceRepositoryForTenant(tenantID string)
     return c.repositoryFactory.GetUserPreferenceRepositoryForTenant(tenantID)
 }
 
-func (c *ServiceContainer) GetTenantPreferenceRepositoryForTenant(tenantID string) (tenantRepos.UserPreferenceRepository, error) {
-    return c.repositoryFactory.GetUserPreferenceRepositoryForTenant(tenantID)
+func (c *ServiceContainer) GetTenantPreferenceRepositoryForTenant(tenantID string) (tenantRepos.TenantPreferenceRepository, error) {
+    return c.repositoryFactory.GetTenantPreferenceRepositoryForTenant(tenantID)
 }
 
 // GetSchedulerRepository gets the scheduler repository (uses main database)

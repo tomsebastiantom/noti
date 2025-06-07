@@ -1,0 +1,39 @@
+# Production Configuration - Security and reliability focused
+# External services enabled, optimized for performance
+
+app:
+  name: "noti"
+  version: "1.0.0"
+
+http:
+  port: "8072"
+
+logger:
+  log_level: "info"  # Production logging
+
+database:
+  type: "postgres"  # Use PostgreSQL in production
+  dsn: ""  # Will be loaded from NOTI_DATABASE_DSN env var
+  migrate_on_start: false  # Manual migration control in production
+
+# External services enabled for production
+queue:
+  enabled: true  # Message queue enabled for scalability
+  url: ""  # Will be loaded from NOTI_QUEUE_URL env var
+  reconnect_interval: "10s"
+  max_reconnect_attempts: 5
+  heartbeat_interval: "60s"
+
+vault:
+  enabled: true  # Vault enabled for secure credential storage
+  address: ""  # Will be loaded from NOTI_VAULT_ADDRESS env var
+  provider: "hashicorp"
+
+# Secure credential storage
+credentials:
+  storage_type: "vault"  # Prefer Vault in production
+  encryption_key_env: "NOTI_ENCRYPTION_KEY"
+  allow_custom_keys: false  # Strict security in production
+  default_to_database: true  # Fallback if Vault unavailable
+
+env: "production"

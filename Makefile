@@ -13,7 +13,7 @@ help: ## Display this help screen
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 compose-up: ### Run docker-compose
-	docker-compose up --build -d postgres rabbitmq && docker-compose logs -f
+	docker-compose up --build -d postgres vault rabbitmq && docker-compose logs -f
 .PHONY: compose-up
 
 compose-down: ### Down docker-compose
@@ -30,7 +30,7 @@ run: swag-v1 ### swag run
 .PHONY: run
 
 docker-rm-volume: ### remove docker volume
-	docker volume rm go-clean-template_pg-data
+	docker volume rm noti_postgres-data
 .PHONY: docker-rm-volume
 
 linter-golangci: ### check by golangci linter
@@ -65,7 +65,7 @@ migrate-create:  ### create new migration
 .PHONY: migrate-create
 
 migrate-up: ### migration up
-	migrate -path migrations -database '$(PG_URL)?sslmode=disable' up
+	migrate -path migrations -database '$(NOTI_DATABASE_DSN)?sslmode=disable' up
 .PHONY: migrate-up
 
 setup-mac: ### setup mac os dependencies to run all tasks

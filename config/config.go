@@ -1,16 +1,17 @@
 package config
 
 import (
-    "fmt"
-    "github.com/knadh/koanf/parsers/yaml"
-    "github.com/knadh/koanf/providers/confmap"
-    "github.com/knadh/koanf/providers/env"
-    "github.com/knadh/koanf/providers/file"
-    "github.com/knadh/koanf/v2"
-    "os"
-    "path/filepath"
-    "strings"
-    "time"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/providers/confmap"
+	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
 )
 
 type Config struct {
@@ -38,11 +39,13 @@ type LoggerConfig struct {
 }
 
 type DatabaseConfig struct {
-    Type string `koanf:"type"`
-    DSN  string `koanf:"dsn"`
+    Type           string `koanf:"type"`
+    DSN            string `koanf:"dsn"`
+    MigrateOnStart bool   `koanf:"migrate_on_start"`
 }
 
 type QueueConfig struct {
+    Enabled              bool          `koanf:"enabled"`
     URL                  string        `koanf:"url"`
     ReconnectInterval    time.Duration `koanf:"reconnect_interval"`
     MaxReconnectAttempts int           `koanf:"max_reconnect_attempts"`
@@ -50,9 +53,10 @@ type QueueConfig struct {
 }
 
 type VaultConfig struct {
+    Enabled  bool   `koanf:"enabled"`
     Address  string `koanf:"address"`
-    Token    string `koanf:"token"`
     Provider string `koanf:"provider"` // "hashicorp", "aws", "azure", "gcp"
+    // Token removed - comes from environment only
 }
 
 type CredentialsConfig struct {
@@ -136,23 +140,40 @@ func discoverConfigFile() string {
 
 func loadDefaults() error {
     defaults := map[string]interface{}{
+        // App defaults
         "app.name":                        "noti",
         "app.version":                     "1.0.0",
+        
+        // HTTP defaults
         "http.port":                       "8072",
+        
+        // Logger defaults
         "logger.log_level":                "debug",
+        
+        // Database defaults (SQLite for easy development)
         "database.type":                   "sqlite",
         "database.dsn":                    "./data/noti.db",
+        "database.migrate_on_start":       true,
+        
+        // Queue defaults (disabled by default for development)
+        "queue.enabled":                   false,
         "queue.url":                       "",
         "queue.reconnect_interval":        "5s",
         "queue.max_reconnect_attempts":    3,
         "queue.heartbeat_interval":        "30s",
+        
+        // Vault defaults (disabled by default for development)
+        "vault.enabled":                   false,
         "vault.address":                   "",
-        "vault.token":                     "",
         "vault.provider":                  "hashicorp",
+        
+        // Credentials defaults
         "credentials.storage_type":        "auto",
         "credentials.encryption_key_env":  "NOTI_ENCRYPTION_KEY",
         "credentials.allow_custom_keys":   true,
         "credentials.default_to_database": true,
+        
+        // Environment
         "env":                            "development",
     }
 
@@ -194,12 +215,41 @@ func unmarshalAndValidate() (*Config, error) {
 }
 
 func validateConfig(cfg *Config) error {
+    // Basic validation
     if cfg.App.Name == "" {
         return fmt.Errorf("app.name is required")
     }
     if cfg.HTTP.Port == "" {
         return fmt.Errorf("http.port is required")
     }
+    
+    // Validate enabled services have required config
+    if cfg.Vault.Enabled {
+        if cfg.Vault.Address == "" {
+            return fmt.Errorf("vault.address is required when vault is enabled")
+        }
+        if os.Getenv("NOTI_VAULT_TOKEN") == "" {
+            return fmt.Errorf("NOTI_VAULT_TOKEN environment variable is required when vault is enabled")
+        }
+    }
+    
+    if cfg.Queue.Enabled {
+        queueURL := cfg.Queue.URL
+        if envURL := os.Getenv("NOTI_QUEUE_URL"); envURL != "" {
+            queueURL = envURL
+        }
+        if queueURL == "" {
+            return fmt.Errorf("queue URL is required when queue is enabled (set NOTI_QUEUE_URL or queue.url)")
+        }
+    }
+    
+    // Validate encryption key for database credential storage
+    if cfg.Credentials.StorageType == "database" || cfg.Credentials.StorageType == "auto" {
+        if os.Getenv(cfg.Credentials.EncryptionKeyEnv) == "" {
+            return fmt.Errorf("encryption key is required for database credential storage (set %s)", cfg.Credentials.EncryptionKeyEnv)
+        }
+    }
+    
     return nil
 }
 
@@ -213,4 +263,27 @@ func logConfigWarning(format string, args ...interface{}) {
     if os.Getenv("NOTI_ENV") != "production" {
         fmt.Printf("[CONFIG WARN] "+format+"\n", args...)
     }
+}
+
+// Helper methods to get secrets from environment variables
+func (c *Config) GetVaultToken() string {
+    return os.Getenv("NOTI_VAULT_TOKEN")
+}
+
+func (c *Config) GetDatabaseDSN() string {
+    if dsn := os.Getenv("NOTI_DATABASE_DSN"); dsn != "" {
+        return dsn
+    }
+    return c.Database.DSN // Fallback to config
+}
+
+func (c *Config) GetQueueURL() string {
+    if url := os.Getenv("NOTI_QUEUE_URL"); url != "" {
+        return url
+    }
+    return c.Queue.URL // Fallback to config
+}
+
+func (c *Config) GetEncryptionKey() string {
+    return os.Getenv(c.Credentials.EncryptionKeyEnv)
 }

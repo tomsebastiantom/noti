@@ -1,24 +1,23 @@
 package credentials
 
 import (
-    "context"
-    "crypto/aes"
-    "crypto/cipher"
-    "crypto/rand"
-    "crypto/sha256"
-    "encoding/base64"
-    "encoding/json"
-    "fmt"
-    "io"
-    "os"
-    "sync"
+	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"sync"
 
-    "getnoti.com/config"
-    "getnoti.com/pkg/db"
-    "getnoti.com/pkg/errors"
-    log "getnoti.com/pkg/logger"
-    "getnoti.com/pkg/vault"
-    "golang.org/x/crypto/pbkdf2"
+	"getnoti.com/config"
+	"getnoti.com/pkg/db"
+	"getnoti.com/pkg/errors"
+	log "getnoti.com/pkg/logger"
+	"getnoti.com/pkg/vault"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 type Manager struct {
@@ -30,7 +29,6 @@ type Manager struct {
     encryptionKey     []byte
     tenantKeys        map[string]cipher.AEAD
     keysMutex         sync.RWMutex
-    operationMutex    sync.Mutex
 }
 
 // StorageType represents where credentials are stored
@@ -77,13 +75,12 @@ func NewManager(config *config.Config, logger log.Logger, mainDB db.Database) (*
             WithCause(err).
             WithMessage("Failed to initialize encryption key").
             Build()
-    }
-
-    // Initialize vault if configured
-    if config.Vault.Address != "" && config.Vault.Token != "" {
+    }    // Initialize vault if configured
+    vaultToken := config.GetVaultToken()
+    if config.Vault.Enabled && config.Vault.Address != "" && vaultToken != "" {
         vaultConfig := &vault.VaultConfig{
             Address:  config.Vault.Address,
-            Token:    config.Vault.Token,
+            Token:    vaultToken,
             Provider: config.Vault.Provider,
         }
         
@@ -472,21 +469,10 @@ func (m *Manager) createAEAD(key []byte) (cipher.AEAD, error) {
 }
 
 func (m *Manager) initEncryptionKey() error {
-    keyEnvVar := m.config.Credentials.EncryptionKeyEnv
-    if keyEnvVar == "" {
-        keyEnvVar = "NOTI_ENCRYPTION_KEY"
-    }
-    
-    key := os.Getenv(keyEnvVar)
+    key := m.config.GetEncryptionKey()
     if key == "" {
-        // Generate a random key for development
-        keyBytes := make([]byte, 32)
-        if _, err := rand.Read(keyBytes); err != nil {
-            return err
-        }
-        key = base64.StdEncoding.EncodeToString(keyBytes)
-        m.logger.Warn("Generated temporary encryption key. Set environment variable for production",
-            log.String("env_var", keyEnvVar))
+        return fmt.Errorf("encryption key is required but not provided (set %s environment variable)", 
+            m.config.Credentials.EncryptionKeyEnv)
     }
 
     keyBytes, err := base64.StdEncoding.DecodeString(key)

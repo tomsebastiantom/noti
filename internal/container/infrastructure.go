@@ -62,12 +62,14 @@ func (c *ServiceContainer) initializeInfrastructure() error {
         mainDB,
     )
     c.logger.Info("Database manager initialized successfully")
-
 	// Initialize queue manager
-	c.queueManager = queue.NewQueueManager(
-		queue.Config(c.config.Queue),
-		c.logger,
-	)
+	queueConfig := queue.Config{
+		URL:                  c.config.Queue.URL,
+		ReconnectInterval:    c.config.Queue.ReconnectInterval,
+		MaxReconnectAttempts: c.config.Queue.MaxReconnectAttempts,
+		HeartbeatInterval:    c.config.Queue.HeartbeatInterval,
+	}
+	c.queueManager = queue.NewQueueManager(queueConfig, c.logger)
 	c.logger.Info("Queue manager initialized successfully")
 
 	// Initialize worker pool manager

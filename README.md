@@ -3,6 +3,167 @@
 ## Overview
 **Noti** is an enterprise-grade **Unified Notification Service** built in Go using Domain-Driven Design (DDD) principles. The service provides multi-tenant notification delivery across various communication channels with real-time capabilities, secure credential management, and extensible provider integrations. Each tenant operates with isolated databases and customizable notification preferences, making it ideal for SaaS platforms and enterprise applications.
 
+## 🚀 Quick Start (Development)
+
+### Prerequisites
+- **Go 1.21+** (required)
+- **Git** (required)
+- **Docker** (optional, for external services)
+
+### 1. Clone and Setup
+```bash
+git clone <repository-url>
+cd noti
+```
+
+### 2. Environment Setup
+```bash
+# Copy environment template
+copy .env.example .env
+
+# Edit .env file and set REQUIRED variables:
+# NOTI_ENCRYPTION_KEY=your-32-character-encryption-key
+```
+
+### 3. Run Development Server
+```bash
+# Quick start (uses SQLite, no external dependencies)
+go run cmd/main.go
+
+# Or use Makefile
+make dev
+```
+
+### 4. Access Application
+- **API**: http://localhost:8072
+- **Health Check**: http://localhost:8072/health
+- **Metrics**: http://localhost:8072/metrics
+
+## 📋 Configuration
+
+### Required Environment Variables
+
+| Variable | Required | Description | Example |
+|----------|----------|-------------|---------|
+| `NOTI_ENCRYPTION_KEY` | ✅ | 32-character encryption key for tenant credentials | `dev-encryption-key-32-bytes-long` |
+
+### Optional Environment Variables
+
+| Variable | Default | Description | Example |
+|----------|---------|-------------|---------|
+| `NOTI_HTTP_PORT` | `8072` | HTTP server port | `3000` |
+| `NOTI_LOGGER_LOG_LEVEL` | `debug` (dev), `info` (prod) | Log level | `debug`, `info`, `warn`, `error` |
+| `NOTI_DATABASE_DSN` | `./data/noti.db` | Database connection string | `postgres://user:pass@localhost:5432/noti` |
+| `NOTI_VAULT_ADDRESS` | - | Vault server address (if enabled) | `http://localhost:8200` |
+| `NOTI_VAULT_TOKEN` | - | Vault access token (if enabled) | `hvs.your-vault-token` |
+| `NOTI_QUEUE_URL` | - | Message queue URL (if enabled) | `amqp://guest:guest@localhost:5672/` |
+| `NOTI_CONFIG_DEBUG` | `false` | Enable config debugging | `true` |
+
+### Configuration Files
+
+Noti uses YAML configuration files with environment-specific overrides:
+
+| File | Purpose | External Services |
+|------|---------|-------------------|
+| `config/config.yaml` | Base development config | ❌ Disabled (SQLite only) |
+| `config/config.development.yaml` | Development overrides | ❌ Disabled (easy setup) |
+| `config/config.production.yaml` | Production settings | ✅ Enabled (Vault + Queue) |
+| `config/config.test.yaml` | Test configuration | ❌ Disabled (in-memory) |
+
+### Configuration Flags
+
+Control external services via configuration:
+
+```yaml
+# Enable/disable external services
+queue:
+  enabled: false  # Set to true to enable message queue
+  url: ""        # Will use NOTI_QUEUE_URL if set
+
+vault:
+  enabled: false  # Set to true to enable Vault
+  address: ""    # Will use NOTI_VAULT_ADDRESS if set
+
+database:
+  type: "sqlite"           # sqlite, postgres, mysql
+  migrate_on_start: true   # Auto-run migrations
+```
+
+## 🛠️ Development Setup
+
+### Minimal Setup (Recommended)
+```bash
+# 1. Set encryption key only
+echo "NOTI_ENCRYPTION_KEY=dev-encryption-key-32-bytes-long" > .env
+
+# 2. Run application
+go run cmd/main.go
+```
+
+This gives you:
+- ✅ SQLite database (auto-created)
+- ✅ All APIs working
+- ✅ No external dependencies
+- ✅ Mock notification providers (log output)
+
+### Full Development Setup (Optional)
+```bash
+# 1. Start external services
+docker-compose up -d vault rabbitmq
+
+# 2. Configure environment
+cat > .env << EOF
+NOTI_ENCRYPTION_KEY=dev-encryption-key-32-bytes-long
+NOTI_VAULT_ADDRESS=http://localhost:8200
+NOTI_VAULT_TOKEN=your-vault-token
+NOTI_QUEUE_URL=amqp://guest:guest@localhost:5672/
+EOF
+
+# 3. Enable services in config
+# Edit config/config.development.yaml:
+# queue:
+#   enabled: true
+# vault:
+#   enabled: true
+```
+
+### Testing Setup
+```bash
+# Set test encryption key
+echo "NOTI_TEST_ENCRYPTION_KEY=test-encryption-key-32-bytes-abc" > .env.test
+
+# Run tests
+go test ./...
+```
+
+## 🏗️ Production Setup
+
+### Required Production Variables
+```bash
+# Database (required)
+NOTI_DATABASE_DSN=postgres://user:password@localhost:5432/noti?sslmode=disable
+
+# Encryption key (required)
+NOTI_ENCRYPTION_KEY=your-production-encryption-key-32-chars
+
+# Vault (recommended)
+NOTI_VAULT_ADDRESS=https://vault.yourcompany.com
+NOTI_VAULT_TOKEN=your-production-vault-token
+
+# Queue (recommended for scale)
+NOTI_QUEUE_URL=amqp://user:password@rabbitmq.yourcompany.com:5672/
+```
+
+### Production Configuration
+Use `config/config.production.yaml` which automatically:
+- ✅ Enables Vault for secure credential storage
+- ✅ Enables message queue for scalability
+- ✅ Uses PostgreSQL database
+- ✅ Sets production logging levels
+- ✅ Disables auto-migration (manual control)
+
+## 📊 Architecture Overview
+
 ### Worker Pool Management
 - **Scalable Worker Pools**: Efficient processing for notifications and scheduled tasks
 - **Circuit Breaker Pattern**: Automatic failure detection and recovery
@@ -60,112 +221,83 @@
 - **Failure Management**: Comprehensive error handling with configurable retry policies
 - **Multi-tenant Isolation**: Per-tenant schedule management and execution
 - **Workflow Integration**: Seamless integration with workflow engine for scheduled workflow executions
-- **Job Priority Management**: Priority-based job processing with queue management
-- **Worker Pool Optimization**: Intelligent worker allocation for different task types
 
-### Workflow Engine
-- **Multi-Step Workflows**: Chain multiple notification steps with conditional logic
-- **Event-Driven Triggers**: Start workflows based on events, schedules, or webhooks
-- **Scheduled Workflow Execution**: CRON-based scheduling for automated workflow execution with per-tenant isolation
-- **Conditional Branching**: Route workflow execution based on dynamic conditions
-- **Delay Steps**: Time-based delays between workflow steps
-- **Digest Support**: Batch notifications over configurable time periods
-- **Channel Routing**: Smart routing to different channels based on user preferences
-- **Template Integration**: Rich template support for each workflow step
-- **Execution Tracking**: Complete audit trail of workflow executions and step results
-- **Job Processing**: Robust job processing system with retry logic and failure management
-- **State Management**: Comprehensive workflow state tracking and recovery mechanisms
-- **Multi-tenant Scheduling**: Isolated workflow schedules per tenant with shared execution infrastructure
+## 🔧 Common Development Tasks
 
-### Workflow Scheduling
-- **CRON-Based Scheduling**: Schedule workflows to run automatically using flexible CRON expressions
-- **Per-Tenant Isolation**: Each tenant can define their own workflow schedules without interference
-- **Schedule Management**: Create, update, enable/disable, and delete workflow schedules through API
-- **Execution History**: Track all scheduled workflow executions with detailed status and result information
-- **Timezone Support**: Configure schedules with specific timezone handling for global deployments
-- **Integration with Task Scheduler**: Seamless integration with the general task scheduler for unified job processing
-- **Error Handling**: Comprehensive error handling and retry logic for failed scheduled executions
-- **Resource Management**: Efficient resource allocation and cleanup for scheduled workflow jobs
+### Generate Encryption Key
+```bash
+# Linux/macOS (generates Base64-encoded 32-byte key)
+openssl rand -base64 32
 
-### Monitoring & Reliability
-- **Comprehensive Logging**: Structured logging with contextual error tracking
-- **Health Monitoring**: Deep health checks across all infrastructure components
-- **Worker Pool Management**: Scalable worker pools for notification processing
-- **Circuit Breaker Pattern**: Automatic failure detection and recovery
-
-## Getting Started
-
-### Prerequisites
-- Go 1.21+
-- Docker & Docker Compose
-- HashiCorp Vault (optional - database credential storage fallback available)
-- Database (PostgreSQL recommended for production)
-- Message Queue (optional - for async processing)
-
-### Quick Start
-1. **Clone the repository**:
-    ```bash
-    git clone https://github.com/yourusername/noti.git
-    cd noti
-    ```
-
-2. **Environment Setup**:
-    ```bash
-    cp .env.example .env
-    # Edit .env with your configuration
-    ```
-
-3. **Start Infrastructure**:
-    ```bash
-    docker-compose up -d vault postgres
-    ```
-
-4. **Initialize Vault** (if needed):
-    ```bash
-    export VAULT_ADDR=http://127.0.0.1:8200
-    export VAULT_TOKEN=your-token
-    ```
-
-5. **Run the Application**:
-    ```bash
-    go run cmd/main.go
-    ```
-
-### Configuration
-
-The service supports multiple configuration methods:
-- Environment variables
-- Configuration files (`config/config.yaml`)
-- HashiCorp Vault for sensitive data
-
-Key configuration areas:
-- **Database Settings**: Per-tenant database connections
-- **Provider Credentials**: Third-party service API keys (stored in Vault or encrypted in database)
-- **Webhook Endpoints**: Client webhook URLs and authentication
-- **Real-time Settings**: SSE connection limits and timeouts
-- **Queue Configuration**: Optional message queue for async processing
-- **Scheduler Settings**: CRON expressions and execution parameters for scheduled tasks
-- **Workflow Scheduling**: Configuration for automated workflow execution schedules
-
-## Architecture
-
-### Domain Structure
+# Windows PowerShell (generates Base64-encoded 32-byte key)
+[System.Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
 ```
-internal/
-├── domain/          # Core business logic
-│   ├── notification/
-│   ├── tenant/
-│   ├── user/
-│   ├── webhook/
-│   └── workflows/   # Workflow management
-├── shared/          # Shared components
-│   ├── scheduler/   # Task scheduling system
-│   ├── events/      # Event management
-│   └── utils/       # Utility functions
-├── usecase/         # Application services
-├── infrastructure/  # External integrations
-├── container/       # Dependency injection
-└── server/          # HTTP layer
+
+### Switch Database Types
+```bash
+# SQLite (default)
+# No configuration needed
+
+# PostgreSQL
+NOTI_DATABASE_DSN=postgres://user:pass@localhost:5432/noti?sslmode=disable
+
+# MySQL
+NOTI_DATABASE_DSN=user:pass@tcp(localhost:3306)/noti?parseTime=true
 ```
+
+### Enable External Services
+```yaml
+# In config/config.development.yaml
+queue:
+  enabled: true
+vault:
+  enabled: true
+```
+
+### Run with Different Environments
+```bash
+# Development (default)
+go run cmd/main.go
+
+# Test environment
+NOTI_ENV=test go run cmd/main.go
+
+# Production
+NOTI_ENV=production go run cmd/main.go
+```
+
+## 🧪 Testing
+
+```bash
+# Unit tests
+go test ./...
+
+# Integration tests (requires test database)
+go test -tags=integration ./...
+
+# With coverage
+go test -cover ./...
+```
+
+## 📈 Monitoring
+
+Built-in endpoints for monitoring:
+- `/health` - Health check
+- `/metrics` - Prometheus metrics
+- `/debug/pprof` - Go profiling (dev only)
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 Built with ❤️ using Go, Domain-Driven Design, and modern cloud-native patterns.

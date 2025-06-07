@@ -1,3 +1,6 @@
+# Base Configuration - Development-friendly defaults
+# This file provides sensible defaults for easy development
+
 app:
   name: "noti"
   version: "1.0.0"
@@ -6,27 +9,31 @@ http:
   port: "8072"
 
 logger:
-  log_level: "debug" 
+  log_level: "debug"
 
 database:
   type: "sqlite"
   dsn: "./data/noti.db"
+  migrate_on_start: true
 
+# External services disabled by default for easy development
 queue:
-  url: ""  
+  enabled: false
+  url: ""
   reconnect_interval: "5s"
   max_reconnect_attempts: 3
   heartbeat_interval: "30s"
 
 vault:
-  address: ""   
-  token: ""      
-  provider: "hashicorp"  
+  enabled: false
+  address: ""
+  provider: "hashicorp"
 
+# Simple credential storage
 credentials:
   storage_type: "auto"           # "vault", "database", "auto"
   encryption_key_env: "NOTI_ENCRYPTION_KEY"
-  allow_custom_keys: true        
-  default_to_database: true      
+  allow_custom_keys: true
+  default_to_database: true
 
 env: "development"
