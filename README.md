@@ -31,13 +31,12 @@ copy .env.example .env
 go run cmd/main.go
 
 # Or use Makefile
-make dev
+make run
 ```
 
 ### 4. Access Application
 - **API**: http://localhost:8072
-- **Health Check**: http://localhost:8072/health
-- **Metrics**: http://localhost:8072/metrics
+- **SSE Events**: http://localhost:8072/v1/events/stream (requires tenant auth)
 
 ## 📋 Configuration
 
@@ -171,6 +170,11 @@ Use `config/config.production.yaml` which automatically:
 
 ## Key Features
 
+### Monitoring & Observability
+- **Service Health Checks**: Built-in health monitoring for database, queue, worker pools, and credential manager
+- **Internal Metrics**: Event bus metrics, queue metrics, and worker pool performance tracking
+- **Logging**: Comprehensive structured logging with configurable levels
+
 ### Core Architecture
 - **Multi-Tenant Support**: Complete tenant isolation with per-tenant databases and secure credential management
 - **Domain-Driven Design**: Clean architecture with separated domains, use cases, and infrastructure layers
@@ -265,26 +269,6 @@ NOTI_ENV=test go run cmd/main.go
 # Production
 NOTI_ENV=production go run cmd/main.go
 ```
-
-## 🧪 Testing
-
-```bash
-# Unit tests
-go test ./...
-
-# Integration tests (requires test database)
-go test -tags=integration ./...
-
-# With coverage
-go test -cover ./...
-```
-
-## 📈 Monitoring
-
-Built-in endpoints for monitoring:
-- `/health` - Health check
-- `/metrics` - Prometheus metrics
-- `/debug/pprof` - Go profiling (dev only)
 
 ## 🤝 Contributing
 
